@@ -1,0 +1,20 @@
+{
+  "name": "Android Dev (Java 17 + SDK)",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.java"
+      ]
+    }
+  },
+  "postCreateCommand": [
+    "sdkmanager --licenses",
+    "sdkmanager 'platform-tools' 'build-tools;33.0.2' 'platforms;android-33'",
+    "./gradlew build || true"
+  ],
+  "remoteUser": "vscode"
+}
