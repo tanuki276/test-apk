@@ -20,16 +20,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.4 # 明示的にバージョンを指定可
+      - name: Give gradlew permission
+        run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: gradle build
+        run: ./gradlew build
 
       - name: Publish to GitHub Packages
-        run: gradle publish
+        run: ./gradlew publish
         env:
           USERNAME: ${{ github.actor }}
           TOKEN: ${{ secrets.TOKEN }}
