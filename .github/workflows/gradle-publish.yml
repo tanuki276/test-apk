@@ -9,8 +9,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository to root
         uses: actions/checkout@v4
+        with:
+          path: .
 
       - name: Check files in repo root
         run: |
