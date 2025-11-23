@@ -1,4 +1,4 @@
-name: Gradle Package
+name: Gradle パッケージ
 
 on:
   release:
@@ -9,31 +9,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: JDK 17のセットアップ
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Give gradlew permission
+      - name: gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
       # ----------------------------------------------------
-      # 変更点 1 & 2: APK生成タスクへの変更
+      # 変更点 1: APKを確実に生成するため、タスクを assembleRelease に変更
       # ----------------------------------------------------
-      - name: Build Release APK
-        # APKを生成するには、assembleReleaseを実行するのが正しい方法です。
+      - name: リリースAPKのビルド (assembleRelease)
+        # エンドユーザー向けの配布物（APK）を生成するタスクを実行します。
         run: ./gradlew assembleRelease --stacktrace --info
 
       # ----------------------------------------------------
-      # 変更点 3: upload-artifactをv4に更新し、APKのパスを指定
+      # 変更点 2 & 3: v4に更新し、APKの正しいパスを指定
       # ----------------------------------------------------
-      - name: Upload Release APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: リリースAPKの成果物をアップロード
+        uses: actions/upload-artifact@v4 # <<< 🔴 致命的なエラーを解消するためv4に修正！
         with:
           name: liefantidia-apk
+          # 🟢 APKの格納場所である app/build/outputs/apk/release/ を指定
           path: app/build/outputs/apk/release/
+          # 成果物を保持する期間 (任意)
           retention-days: 7
