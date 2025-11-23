@@ -12,17 +12,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check files in repo root
-        run: |
-          pwd
-          ls -la
-
-      - name: Check gradlew details
-        run: |
-          file ./gradlew
-          head -1 ./gradlew | cat -v
-          ls -l ./gradlew
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -32,11 +21,19 @@ jobs:
       - name: Give gradlew permission
         run: chmod +x ./gradlew
 
-      - name: Build project with Gradle
-        run: ./gradlew build --stacktrace --info
+      # ----------------------------------------------------
+      # 変更点 1 & 2: APK生成タスクへの変更
+      # ----------------------------------------------------
+      - name: Build Release APK
+        # APKを生成するには、assembleReleaseを実行するのが正しい方法です。
+        run: ./gradlew assembleRelease --stacktrace --info
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+      # ----------------------------------------------------
+      # 変更点 3: upload-artifactをv4に更新し、APKのパスを指定
+      # ----------------------------------------------------
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: build
-          path: build/libs/
+          name: liefantidia-apk
+          path: app/build/outputs/apk/release/
+          retention-days: 7
