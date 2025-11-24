@@ -17,13 +17,13 @@
         android:textStyle="bold"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toStartOf="@+id/button_settings" />
 
     <EditText
         android:id="@+id/edit_text_ingredients"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="食材をコンマ区切りで入力するか、カメラボタンで撮影"
+        android:hint="食材をコンマ区切りで入力"
         android:inputType="textMultiLine"
         android:minLines="2"
         android:maxLines="4"
@@ -31,7 +31,8 @@
         android:layout_marginTop="8dp"
         app:layout_constraintTop_toBottomOf="@+id/label_ingredients"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/button_camera" />
+        app:layout_constraintEnd_toStartOf="@+id/button_camera"
+        android:autofillHints="" />
 
     <ImageButton
         android:id="@+id/button_camera"
@@ -48,7 +49,7 @@
         android:id="@+id/label_settings"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="レシピ設定（難易度、ジャンル）"
+        android:text="レシピ設定（難易度、ジャンル、時間、制約）"
         android:textSize="16sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
@@ -77,6 +78,27 @@
         app:layout_constraintStart_toEndOf="@+id/spinner_difficulty"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <Spinner
+        android:id="@+id/spinner_time"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:entries="@array/time_options"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/spinner_difficulty"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/spinner_diet" />
+
+    <Spinner
+        android:id="@+id/spinner_diet"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:entries="@array/dietary_options"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/spinner_genre"
+        app:layout_constraintStart_toEndOf="@+id/spinner_time"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 
     <Button
         android:id="@+id/button_generate_recipe"
@@ -84,7 +106,7 @@
         android:layout_height="wrap_content"
         android:text="AIレシピを提案する"
         android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_difficulty"
+        app:layout_constraintTop_toBottomOf="@+id/spinner_time"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -101,14 +123,14 @@
             android:id="@+id/text_view_recipe_output"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="ここにAIが生成したレシピが表示されます。"
+            android:text="ここにAIが生成したレシピがストリーミングで表示されます。"
             android:textSize="16sp"
             android:padding="8dp"
             android:background="#EFEFEF"
             android:textColor="@android:color/black" />
-            
+
     </ScrollView>
-    
+
     <Button
         android:id="@+id/button_settings"
         style="@style/Widget.AppCompat.Button.Borderless"
@@ -118,7 +140,6 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginEnd="-16dp"
-        android:layout_marginTop="-8dp"
-        tools:ignore="RelativeOverlap" />
+        android:layout_marginTop="-8dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
