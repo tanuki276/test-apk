@@ -13,24 +13,29 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: 2. JDK 17のセットアップ (キャッシュ無効)
+      - name: 2. JDK 17のセットアップ
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          # cache: 'gradle' は削除済み
+          # キャッシュの自動復元は停止
+          # cache: 'gradle' は意図的に削除しています
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 3.5. Gradleシステムキャッシュを強制削除 (★NEW)
-        # AGPのエラーを排除するため、Gradleが保持するシステムキャッシュを強制的に削除します。
+      # ----------------------------------------------------
+      # 🚨 強制リセットステップ 🚨
+      # ----------------------------------------------------
+      - name: 3.5. Gradleシステムキャッシュを強制削除 (最後の手段)
+        # 頑固なAGPのパス解決エラーを排除するため、ランナーの全キャッシュを強制削除します。
         run: rm -rf ~/.gradle/caches
 
       # ----------------------------------------------------
       # ビルドタスクの実行
       # ----------------------------------------------------
       - name: 4. リリースAPKのビルド (assembleRelease)
+        # clean も実行して、ビルドディレクトリも確実にクリアします。
         run: ./gradlew clean assembleRelease --stacktrace --info
 
       # ----------------------------------------------------
