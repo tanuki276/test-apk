@@ -1,38 +1,36 @@
 name: APK Java ビルド (リリース)
 
 on:
-  # メイントリガー: GitHubリポジトリで新しいリリースが作成されたときに実行
   release:
     types: [created]
-
-  # ★手動実行を許可: Actionsタブからいつでも実行可能
   workflow_dispatch: 
 
 jobs:
   build:
-    # 標準的なLinux環境で実行
     runs-on: ubuntu-latest
 
     steps:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: 2. JDK 17のセットアップ
+      - name: 2. JDK 17のセットアップ (キャッシュ無効)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          # キャッシュを使用
-          cache: 'gradle'
+          # cache: 'gradle' は削除済み
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
+      - name: 3.5. Gradleシステムキャッシュを強制削除 (★NEW)
+        # AGPのエラーを排除するため、Gradleが保持するシステムキャッシュを強制的に削除します。
+        run: rm -rf ~/.gradle/caches
+
       # ----------------------------------------------------
-      # ビルドタスクの実行（★修正点：'clean'を追加）
+      # ビルドタスクの実行
       # ----------------------------------------------------
       - name: 4. リリースAPKのビルド (assembleRelease)
-        # 🟢 ビルド失敗の原因を排除するため、'clean'タスクを先頭で実行します。
         run: ./gradlew clean assembleRelease --stacktrace --info
 
       # ----------------------------------------------------
@@ -42,7 +40,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
-          # 🟢 APKの格納場所
           path: app/build/outputs/apk/release/
-          # 成果物を保持する期間
           retention-days: 7
