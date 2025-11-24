@@ -1,8 +1,12 @@
 name: Gradle パッケージ
 
 on:
+  # メイントリガー: GitHubリポジトリで新しいリリースが作成されたときに実行
   release:
     types: [created]
+  
+  # ★トラブルシューティング/デバッグ用に追加: Actionsタブから手動で実行可能にする
+  workflow_dispatch: 
 
 jobs:
   build:
@@ -17,25 +21,27 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # キャッシュを有効にし、ビルド速度を向上させる
+          cache: 'gradle'
 
       - name: gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
       # ----------------------------------------------------
-      # 変更点 1: APKを確実に生成するため、タスクを assembleRelease に変更
+      # ビルドタスクの実行
       # ----------------------------------------------------
       - name: リリースAPKのビルド (assembleRelease)
-        # エンドユーザー向けの配布物（APK）を生成するタスクを実行します。
+        # エンドユーザー向けの配布物（APK）を生成するタスクを実行
         run: ./gradlew assembleRelease --stacktrace --info
 
       # ----------------------------------------------------
-      # 変更点 2 & 3: v4に更新し、APKの正しいパスを指定
+      # 成果物のアップロード
       # ----------------------------------------------------
       - name: リリースAPKの成果物をアップロード
-        uses: actions/upload-artifact@v4 # <<< 🔴 致命的なエラーを解消するためv4に修正！
+        uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
           # 🟢 APKの格納場所である app/build/outputs/apk/release/ を指定
           path: app/build/outputs/apk/release/
-          # 成果物を保持する期間 (任意)
+          # 成果物を保持する期間
           retention-days: 7
