@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".SettingsActivity">
+
+    <TextView
+        android:id="@+id/text_view_description"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Gemini/GPT APIキーを入力してください。キーは生体認証で暗号化され、安全に端末に保存されます。"
+        android:textSize="14sp"
+        android:paddingBottom="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <EditText
+        android:id="@+id/edit_text_api_key"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="ここにAPIキー（sk-xxxx...）を入力"
+        android:inputType="textPassword"
+        android:minLines="2"
+        android:maxLines="4"
+        android:gravity="top|start"
+        app:layout_constraintTop_toBottomOf="@+id/text_view_description"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:autofillHints="password" />
+
+    <Button
+        android:id="@+id/button_save_key"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="APIキーを保存して認証する"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@+id/edit_text_api_key"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/text_view_security_note"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="※保存後、キーの利用には端末の指紋認証またはPINが必要になります。"
+        android:textSize="12sp"
+        android:textColor="@android:color/holo_red_dark"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/button_save_key"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
