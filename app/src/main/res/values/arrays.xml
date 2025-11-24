@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+    <string-array name="difficulty_options">
+        <item>難易度: 初心者 (簡単)</item>
+        <item>難易度: 中級者 (普通)</item>
+        <item>難易度: 上級者 (挑戦的)</item>
+    </string-array>
+    
+    <string-array name="genre_options">
+        <item>ジャンル: 和食</item>
+        <item>ジャンル: 洋食</item>
+        <item>ジャンル: 中華</item>
+        <item>ジャンル: エスニック</item>
+        <item>ジャンル: 創作・無国籍</item>
+    </string-array>
+    
+    <string-array name="time_options">
+        <item>時間制限: 15分以内 (速攻)</item>
+        <item>時間制限: 30分以内 (標準)</item>
+        <item>時間制限: 1時間以内 (じっくり)</item>
+        <item>時間制限: なし</item>
+    </string-array>
+    
+    <string-array name="dietary_options">
+        <item>制約: なし</item>
+        <item>制約: ベジタリアン</item>
+        <item>制約: 低カロリー・ダイエット</item>
+        <item>制約: 低糖質・ケトジェニック</item>
+        <item>制約: 辛さ控えめ</item>
+    </string-array>
+
+</resources>
