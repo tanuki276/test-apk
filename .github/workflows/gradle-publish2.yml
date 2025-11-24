@@ -22,20 +22,21 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # キャッシュを使用
           cache: 'gradle'
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
       # ----------------------------------------------------
-      # ビルドタスクの実行（コンフリクト解消後の確定版）
+      # ビルドタスクの実行（★修正点：'clean'を追加）
       # ----------------------------------------------------
       - name: 4. リリースAPKのビルド (assembleRelease)
-        # エンドユーザー向けの配布物（APK）を生成するタスクを実行
-        run: ./gradlew assembleRelease --stacktrace --info
+        # 🟢 ビルド失敗の原因を排除するため、'clean'タスクを先頭で実行します。
+        run: ./gradlew clean assembleRelease --stacktrace --info
 
       # ----------------------------------------------------
-      # 成果物のアップロード（コンフリクト解消後の確定版）
+      # 成果物のアップロード
       # ----------------------------------------------------
       - name: 5. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
