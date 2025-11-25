@@ -6,6 +6,9 @@ import android.security.keystore.KeyProperties;
 import android.util.Base64;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -89,14 +92,17 @@ public class KeyStoreHelper {
      * データを暗号化し、暗号化データとIVを返す
      */
     public EncryptedData encryptData(String dataToEncrypt) throws Exception {
+        // キーの存在チェックと生成ロジックはSettingsActivityに移動したので削除、
+        // ただし、KeyStoreHelper単体での利用も考慮し、ここでキーが存在しない場合のみ生成するように戻します。
+        // （SettingsActivity側でgenerateNewKeyを呼んでいるので冗長ではあるが、より安全）
         if (!isKeyExist()) {
-            // 暗号化前にキーが存在しない場合は生成
             generateNewKey();
         }
-        
+
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
         Cipher cipher = Cipher.getInstance(TRANSFORMATION); 
+        // 暗号化時にはIVが自動生成される
         cipher.init(Cipher.ENCRYPT_MODE, secretKey); 
 
         byte[] encryptedBytes = cipher.doFinal(dataToEncrypt.getBytes("UTF-8"));
@@ -118,9 +124,14 @@ public class KeyStoreHelper {
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
         // BiometricPromptの認証開始のために、IVなしでCipherをDECRYPT_MODEで初期化
+        // NOTE: CBCモードではIVが必須だが、認証開始時点ではダミーまたはnullで初期化せざるを得ない。
+        // 認証成功後、完全なIV付きで再初期化する必要がある。
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+        // IVなしの初期化は、古いAndroidバージョンで例外をスローする可能性があるため、try-catchで対応するか、
+        // BiometricPromptがIVなしの初期化を許可するよう、DECRYPT_MODEでキーのみで初期化する
+        // 認証開始時にはCipher.init()にIV/GCMParameterSpecを含めないのが一般的。
         cipher.init(Cipher.DECRYPT_MODE, secretKey); 
-        
+
         return cipher;
     }
 
@@ -133,13 +144,19 @@ public class KeyStoreHelper {
         byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
         byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
 
-        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-
-        // 【★重要修正点】: BiometricPromptで認証されたCipherオブジェクトを、
+        // ★重要修正点★: BiometricPromptで認証されたCipherオブジェクトを、
         // 鍵とIVParameterSpecを使ってDECRYPT_MODEで再初期化する。
-        // これにより、認証セッションを維持しつつ、IV required... のエラーを回避します。
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv)); 
+        // BiometricPromptから返されたCipherは認証済みの鍵に紐づいているため、
+        // ここでIVを設定し、再度initを呼び出すことで復号化が可能になる。
+        // CBCモードではIVなしでのdoFinalはIV requiredエラーとなるため、この再初期化が必須。
         
+        // 鍵を改めて取得する必要はないが、`cipher.init()`のオーバーロード要件のため、
+        // 鍵を取得し、認証済みの`cipher`インスタンスにIVを適用して再初期化します。
+        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+        
+        // 認証セッションを維持しつつ、IV required... のエラーを回避するための再初期化
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv)); 
+
         byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
 
         return new String(decryptedBytes, "UTF-8");
