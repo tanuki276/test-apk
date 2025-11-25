@@ -29,15 +29,22 @@ public class SettingsActivity extends AppCompatActivity {
     private Button saveButton;
     private TextView keySavedPlaceholder;
     private KeyStoreHelper keyStoreHelper;
-    private PreferencesHelper preferencesHelper; // PreferencesHelperを追加
+    private PreferencesHelper preferencesHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        // APIキー暗号化ヘルパーとプリファレンスヘルパーの初期化
-        keyStoreHelper = new KeyStoreHelper(this);
+        // APIキー暗号化ヘルパーとプリファレンスヘルパーの初期化 (Contextを渡す)
+        // KeyStoreHelperはコンストラクタ内で鍵の存在チェックと生成を行う
+        try {
+            keyStoreHelper = new KeyStoreHelper(this);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "KeyStoreHelper initialization failed: " + e.getMessage());
+            Toast.makeText(this, "セキュリティシステム初期化エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            // 以降の処理を中止することも検討するが、ここでは続行
+        }
         preferencesHelper = new PreferencesHelper(this);
 
         apiKeyInput = findViewById(R.id.edit_text_api_key);
@@ -48,7 +55,7 @@ public class SettingsActivity extends AppCompatActivity {
         // 初期状態でキーが保存されているかチェックし、UIを更新
         updateUiForSavedKey();
 
-        // 戻るボタンのクリックリスナー (存在する場合)
+        // 戻るボタンのクリックリスナー
         View backButton = findViewById(R.id.button_back);
         if (backButton != null) {
             backButton.setOnClickListener(v -> finish());
@@ -66,6 +73,11 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
+        if (keyStoreHelper == null) {
+            Toast.makeText(this, "セキュリティシステムの準備ができていません。", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         try {
             // 1. 入力されたキーを暗号化 (KeyStoreのキーを使用)
             EncryptedData encryptedData = keyStoreHelper.encryptData(inputKey);
@@ -78,7 +90,7 @@ public class SettingsActivity extends AppCompatActivity {
         } catch (KeyPermanentlyInvalidatedException e) {
             Log.e(TAG, "Key permanently invalidated: " + e.getMessage());
             Toast.makeText(this, "生体認証情報が変更されました。キーを再作成します。", Toast.LENGTH_LONG).show();
-            // キーをKeyStoreから削除し、次回KeyStoreHelper初期化時に再作成させる
+            // KeyStoreのキーを削除し、再生成を促す
             keyStoreHelper.deleteKeyAlias();
             preferencesHelper.deleteEncryptedKey();
             updateUiForSavedKey();
@@ -91,11 +103,16 @@ public class SettingsActivity extends AppCompatActivity {
     // 復号化のために生体認証を要求する
     private void promptBiometricForDecryption() {
         Executor executor = ContextCompat.getMainExecutor(this);
-        
+
+        if (keyStoreHelper == null || !keyStoreHelper.isKeyAliasExist()) {
+            Toast.makeText(this, "セキュリティキーが利用できません。", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         try {
             // 1. 復号化に必要なCipherをKeystoreから取得 (CryptoObjectに渡す)
             Cipher cipher = keyStoreHelper.getDecryptCipher();
-            
+
             BiometricPrompt biometricPrompt = new BiometricPrompt(SettingsActivity.this,
                     executor, new BiometricPrompt.AuthenticationCallback() {
                 @Override
@@ -116,7 +133,7 @@ public class SettingsActivity extends AppCompatActivity {
                         if (encryptedData == null) {
                             throw new Exception("Encrypted data not found in preferences.");
                         }
-                        
+
                         // 認証済みのCipherをKeyStoreHelperに渡して復号化を実行
                         Cipher authenticatedCipher = result.getCryptoObject().getCipher();
                         String decryptedKey = keyStoreHelper.decryptData(encryptedData, authenticatedCipher);
@@ -148,7 +165,9 @@ public class SettingsActivity extends AppCompatActivity {
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
                     Toast.makeText(getApplicationContext(), "認証失敗。APIキーを使用できません。", Toast.LENGTH_SHORT).show();
-                    // 認証失敗時も保存はされた状態のままにするか、削除するかは設計次第だが、ここでは削除しない
+                    // 認証失敗時はデータを削除して再入力を促す
+                    preferencesHelper.deleteEncryptedKey();
+                    updateUiForSavedKey();
                 }
             });
 
@@ -173,21 +192,21 @@ public class SettingsActivity extends AppCompatActivity {
         if (preferencesHelper.hasEncryptedKey()) { // PreferencesHelperでチェック
             keySavedPlaceholder.setVisibility(View.VISIBLE);
             apiKeyInput.setVisibility(View.GONE);
-            saveButton.setText("APIキーを再設定する"); 
+            saveButton.setText("APIキーを再設定する");
             saveButton.setOnClickListener(v -> {
-                // 再設定ボタンが押されたら暗号化データを削除
+                // 再設定ボタンが押されたら暗号化データを削除し、入力フィールドを表示
                 preferencesHelper.deleteEncryptedKey();
                 updateUiForSavedKey();
             });
         } else {
             keySavedPlaceholder.setVisibility(View.GONE);
             apiKeyInput.setVisibility(View.VISIBLE);
-            saveButton.setText(R.string.button_save_key); 
+            saveButton.setText(R.string.button_save_key);
             saveButton.setOnClickListener(v -> saveApiKey());
             apiKeyInput.setText(""); // 入力フィールドをクリア
         }
     }
-    
+
     // BiometricPropertiesクラスは、必要な認証方式を定義するために使用されます。
     // 外部ファイルがないため、内部クラスとして定義します。
     private static class BiometricProperties {
