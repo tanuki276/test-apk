@@ -7,9 +7,9 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton; // カメラボタンのために追加
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
-import android.widget.Spinner; // Spinnerのために追加
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,10 +31,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
-    private ImageButton cameraButton; // 追加
+    private ImageButton cameraButton;
     private ProgressBar loadingIndicator;
 
-    // ★新規追加：レシピ設定用のSpinner
+    // レシピ設定用のSpinner
     private Spinner spinnerDifficulty;
     private Spinner spinnerGenre;
     private Spinner spinnerTime;
@@ -65,26 +65,64 @@ public class MainActivity extends AppCompatActivity {
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
         loadingIndicator.setVisibility(View.GONE);
-        
-        // ★新規追加：カメラボタン（機能未実装、クリックイベントだけ設定）
         cameraButton = findViewById(R.id.button_camera);
 
-        // ★新規追加：Spinnerの初期化
+        // Spinnerの初期化
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
         spinnerGenre = findViewById(R.id.spinner_genre);
         spinnerTime = findViewById(R.id.spinner_time);
         spinnerDiet = findViewById(R.id.spinner_diet);
-        // Note: spinnerの項目 (@array/...) はres/values/arrays.xmlに定義されている必要があります。
-        // ここでは配列リソースが既にあるものとして進めます。
+        
+        // Spinnerにアダプタを設定する
+        loadSpinnerAdapters();
 
         // イベントリスナーの設定
         settingsButton.setOnClickListener(v -> openSettings());
         generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
-        cameraButton.setOnClickListener(v -> showFeatureNotImplemented()); // カメラ機能のデモ用
+        cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
 
         // アプリ起動時にキーを読み出す処理を開始
         loadApiKey();
     }
+
+    /**
+     * SpinnerにArrayAdapterを設定し、res/values/arrays.xmlの項目をロードする
+     * ArrayAdapterのレイアウトには標準の`simple_spinner_item`と`simple_spinner_dropdown_item`を使用
+     */
+    private void loadSpinnerAdapters() {
+        // 難易度 - リソース名を R.array.difficulty_options に修正
+        ArrayAdapter<CharSequence> difficultyAdapter = ArrayAdapter.createFromResource(
+                this, 
+                R.array.difficulty_options, 
+                android.R.layout.simple_spinner_item);
+        difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerDifficulty.setAdapter(difficultyAdapter);
+
+        // ジャンル - リソース名を R.array.genre_options に修正
+        ArrayAdapter<CharSequence> genreAdapter = ArrayAdapter.createFromResource(
+                this, 
+                R.array.genre_options, 
+                android.R.layout.simple_spinner_item);
+        genreAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerGenre.setAdapter(genreAdapter);
+
+        // 調理時間 - リソース名を R.array.time_options に修正
+        ArrayAdapter<CharSequence> timeAdapter = ArrayAdapter.createFromResource(
+                this, 
+                R.array.time_options, 
+                android.R.layout.simple_spinner_item);
+        timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerTime.setAdapter(timeAdapter);
+
+        // 食事制限 - リソース名を R.array.dietary_options に修正
+        ArrayAdapter<CharSequence> dietAdapter = ArrayAdapter.createFromResource(
+                this, 
+                R.array.dietary_options, 
+                android.R.layout.simple_spinner_item);
+        dietAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerDiet.setAdapter(dietAdapter);
+    }
+
 
     /**
      * カメラボタンの機能が未実装であることを示すトースト
@@ -209,16 +247,20 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "食材を入力してください。", Toast.LENGTH_SHORT).show();
             return;
         }
-        
-        // ★修正点：Spinnerから実際の選択値を取得する
+
+        // Spinnerから実際の選択値を取得する
         String difficulty = spinnerDifficulty.getSelectedItem().toString();
         String genre = spinnerGenre.getSelectedItem().toString();
         // 時間と制約をプロンプトに追加するために結合
         String timeConstraint = spinnerTime.getSelectedItem().toString();
         String dietConstraint = spinnerDiet.getSelectedItem().toString();
-        
+
         // すべての制約を結合してAPIクライアントに渡す
-        String allConstraints = String.format("調理時間: %s, 食事制限: %s", timeConstraint, dietConstraint);
+        // 注意: APIに渡す前に、"難易度: 初心者 (簡単)" のようなSpinnerの表示テキストから、
+        // "初心者 (簡単)" のような純粋な制約テキストを抽出するロジックを追加すると、
+        // AIへのプロンプトがより明確になります。
+        String allConstraints = String.format("難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s", 
+            difficulty, genre, timeConstraint, dietConstraint);
 
 
         // UI操作の準備
@@ -226,9 +268,9 @@ public class MainActivity extends AppCompatActivity {
         generateRecipeButton.setEnabled(false);
         loadingIndicator.setVisibility(View.VISIBLE);
 
-        // APIクライアントの呼び出し (難易度、ジャンル、制約を渡す)
+        // APIクライアントの呼び出し 
         apiClient.generateRecipe(apiKey, ingredients, difficulty, genre, allConstraints, new GeminiApiClient.RecipeCallback() {
-            
+
             @Override
             public void onNewChunk(String chunk) {
                 // UIスレッドで実行される
