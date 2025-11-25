@@ -8,212 +8,157 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import okhttp3.HttpUrl;
 
 /**
- * Gemini APIと通信し、レシピを生成するためのクライアントクラス。
- * ネットワーク処理は非同期で実行する。
+ * Google Gemini APIと通信し、レシピ生成を行うクライアントクラス。
+ * OkHttpライブラリを使用して非同期通信を行います。
+ * (注: OkHttpはGradleファイルで依存関係に追加する必要があります)
  */
 public class GeminiApiClient {
 
     private static final String TAG = "GeminiApiClient";
-    // 2.5-flash-preview-09-2025 を使用
+    private static final String API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
     private static final String MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
-    // API URLはモデル名とキーをQuery Parameterで渡す
-    private static final String API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private final ExecutorService executor;
-    private final Handler handler;
     private final OkHttpClient client;
+    private final Handler mainHandler;
 
     public GeminiApiClient() {
-        executor = Executors.newSingleThreadExecutor();
-        handler = new Handler(Looper.getMainLooper());
-        // タイムアウト設定などを必要に応じて追加可能
-        client = new OkHttpClient();
-    }
-
-    public interface RecipeCallback {
-        // ストリーミングではないため、onNewChunkをonResultに変更（名前だけ）
-        void onResult(String result);
-        void onComplete();
-        void onFailure(String error);
+        // OkHttpClientのインスタンスは一つで十分
+        this.client = new OkHttpClient();
+        // UIスレッドでコールバックを実行するためのハンドラ
+        this.mainHandler = new Handler(Looper.getMainLooper());
     }
 
     /**
-     * ユーザーの設定に基づき、レシピ生成プロセスを開始する。
+     * レシピ生成APIの結果を返すためのコールバックインターフェース。
+     */
+    public interface RecipeCallback {
+        void onResult(String result); // 結果のテキストが返されたとき
+        void onComplete(); // 処理が完了したとき (成功・失敗に関わらず)
+        void onFailure(String error); // API呼び出しまたは処理が失敗したとき
+    }
+
+    /**
+     * Gemini APIを呼び出し、指定された食材と制約に基づいてレシピを生成します。
+     *
+     * @param apiKey 認証済みのAPIキー
+     * @param ingredients ユーザーが入力した食材
+     * @param difficulty 難易度 (Spinnerからの選択値)
+     * @param genre ジャンル (Spinnerからの選択値)
+     * @param allConstraints その他制約 (時間、価格帯、食事制限など)
+     * @param callback 結果をUIスレッドに戻すためのコールバック
      */
     public void generateRecipe(String apiKey, String ingredients, String difficulty, String genre, String allConstraints, RecipeCallback callback) {
+        
+        // 1. プロンプトとシステムインストラクションの構築
+        String systemPrompt = "あなたはプロの料理研究家であり、AIレシピジェネレーターです。ユーザーが入力した食材と制約に基づいて、創造的かつ実用的なレシピを考案してください。出力は日本語で、以下の形式に従ってください。\n\n## [レシピ名]\n\n### 材料\n- ...\n\n### 作り方\n1. ...\n2. ...\n\n### ポイント\n- ...";
+        String userQuery = String.format(
+            "以下の食材と制約を使用して、レシピを一つ考案してください。\n\n食材: %s\n制約: %s, %s, %s",
+            ingredients, difficulty, genre, allConstraints
+        );
 
-        executor.execute(() -> {
-            Response response = null;
-            try {
-                // 1. プロンプト生成
-                String prompt = buildPrompt(ingredients, difficulty, genre, allConstraints);
+        // 2. APIリクエストボディの構築
+        String jsonPayload;
+        try {
+            JSONObject systemInstruction = new JSONObject()
+                .put("parts", new JSONArray().put(new JSONObject().put("text", systemPrompt)));
 
-                // 2. APIリクエストボディ (JSON) を構築
-                String jsonBody = buildJsonPayload(prompt);
+            JSONObject userPart = new JSONObject()
+                .put("text", userQuery);
 
-                // 3. APIリクエストの構築
-                // API URLは BASE_URL + MODEL_NAME + :generateContent?key=...
-                HttpUrl httpUrl = HttpUrl.parse(API_BASE_URL + MODEL_NAME + ":generateContent").newBuilder()
-                                        .addQueryParameter("key", apiKey)
-                                        .build();
+            JSONObject contents = new JSONObject()
+                .put("parts", new JSONArray().put(userPart));
 
-                RequestBody body = RequestBody.create(jsonBody, JSON);
-                Request request = new Request.Builder()
-                        .url(httpUrl)
-                        .post(body)
-                        .header("Content-Type", "application/json")
-                        .build();
+            JSONObject payload = new JSONObject()
+                .put("contents", new JSONArray().put(contents))
+                .put("systemInstruction", systemInstruction)
+                // 検索グラウンディングツールを有効にする (最新情報に基づいたレシピを生成するため)
+                .put("tools", new JSONArray().put(new JSONObject().put("google_search", new JSONObject())));
 
-                // 4. APIリクエストの実行
-                response = client.newCall(request).execute();
+            jsonPayload = payload.toString();
+        } catch (Exception e) {
+            Log.e(TAG, "JSON Payload construction failed: " + e.getMessage());
+            callback.onFailure("リクエスト構築エラー: " + e.getMessage());
+            callback.onComplete();
+            return;
+        }
+        
+        // 3. HTTPリクエストの構築
+        String fullUrl = API_URL_BASE + MODEL_NAME + ":generateContent?key=" + apiKey;
+        RequestBody body = RequestBody.create(jsonPayload, JSON);
+        Request request = new Request.Builder()
+            .url(fullUrl)
+            .post(body)
+            .build();
 
-                if (!response.isSuccessful()) {
-                    String errorDetail = response.body() != null ? response.body().string() : "No body";
-                    throw new IOException("API呼び出しが失敗しました: " + response.code() + ", 詳細: " + errorDetail);
-                }
-
-                // 5. レスポンスのパースと結果の抽出
-                String responseBody = response.body().string();
-                String generatedText = parseResponse(responseBody);
-
-                // 6. UIスレッドで結果を通知
-                handler.post(() -> {
-                    callback.onResult(generatedText);
+        // 4. APIコールの実行 (非同期)
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "API call failed: " + e.getMessage());
+                // UIスレッドでエラーを通知
+                mainHandler.post(() -> {
+                    callback.onFailure("ネットワークエラー: " + e.getMessage());
                     callback.onComplete();
                 });
+            }
 
-            } catch (Exception e) {
-                String errorMessage = "API通信または処理エラー: " + e.getMessage();
-                handler.post(() -> callback.onFailure(errorMessage));
-                Log.e(TAG, errorMessage, e);
-            } finally {
-                if (response != null) {
-                    response.close();
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String responseBody = response.body().string();
+                
+                if (!response.isSuccessful()) {
+                    Log.e(TAG, "API call failed with code: " + response.code() + ", body: " + responseBody);
+                    // UIスレッドでエラーを通知
+                    mainHandler.post(() -> {
+                        callback.onFailure("APIエラー (" + response.code() + "): " + responseBody);
+                        callback.onComplete();
+                    });
+                    return;
+                }
+
+                try {
+                    // 5. レスポンスのパースと結果の抽出
+                    JSONObject jsonResponse = new JSONObject(responseBody);
+                    JSONArray candidates = jsonResponse.getJSONArray("candidates");
+                    if (candidates.length() > 0) {
+                        JSONObject candidate = candidates.getJSONObject(0);
+                        String generatedText = candidate.getJSONObject("content")
+                                                        .getJSONArray("parts")
+                                                        .getJSONObject(0)
+                                                        .getString("text");
+
+                        // UIスレッドで結果を通知
+                        mainHandler.post(() -> {
+                            callback.onResult(generatedText);
+                            callback.onComplete();
+                        });
+                    } else {
+                        // UIスレッドでエラーを通知
+                        mainHandler.post(() -> {
+                            callback.onFailure("APIが有効なコンテンツを返しませんでした。");
+                            callback.onComplete();
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Response parsing failed: " + e.getMessage());
+                    // UIスレッドでエラーを通知
+                    mainHandler.post(() -> {
+                        callback.onFailure("レスポンス解析エラー: " + e.getMessage());
+                        callback.onComplete();
+                    });
                 }
             }
         });
-    }
-
-    /**
-     * ユーザー設定を統合したプロンプト文字列を生成する
-     */
-    private String buildPrompt(String ingredients, String difficulty, String genre, String allConstraints) {
-        String expertise = "";
-        String constraint = "";
-
-        // 難易度によるペルソナと制約の設定
-        if (difficulty.contains("初心者")) {
-            expertise = "料理初心者にも分かりやすい言葉で、失敗しない手順を提案するプロの料理人として振る舞ってください。";
-            constraint = "手順は短く区切り、難しい調理技術は使わないでください。";
-        } else if (difficulty.contains("上級者")) {
-            expertise = "創造的で挑戦的なレシピを提供するミシュランのシェフとして振る舞ってください。";
-            constraint = "プロの用語や高度な調理法を含めてください。";
-        } else {
-             expertise = "バランスの取れた中級者向けレシピを提案する家庭料理研究家として振る舞ってください。";
-             constraint = "";
-        }
-
-        // プロンプトの統合
-        String prompt = "あなたはAIレシピ提案アシスタントです。"
-                + expertise
-                + "\n\n以下の条件と食材に基づいて、調理手順を含むレシピを一つ提案してください。"
-                + "\n\n---"
-                + "\n[入力食材]: " + ingredients
-                + "\n[難易度]: " + difficulty
-                + "\n[ジャンル]: " + genre
-                + "\n[追加制約]: " + allConstraints
-                + "\n[その他技術制約]: " + constraint
-                + "\n\n提案は、レシピ名、材料（分量付き）、調理手順の順に、Markdown形式で出力してください。"
-                + "\n---";
-
-        return prompt;
-    }
-
-    /**
-     * Gemini APIに送信するためのJSONペイロードを構築する
-     * Google Search Groundingを有効化する設定を追加
-     */
-    private String buildJsonPayload(String prompt) {
-        try {
-            JSONObject contentPart = new JSONObject();
-            // JSON文字列内の二重引用符をエスケープ
-            String safePrompt = prompt.replace("\"", "\\\"");
-            contentPart.put("text", safePrompt);
-
-            JSONArray partsArray = new JSONArray();
-            partsArray.put(contentPart);
-
-            JSONObject content = new JSONObject();
-            content.put("parts", partsArray);
-            content.put("role", "user");
-
-            JSONArray contentsArray = new JSONArray();
-            contentsArray.put(content);
-
-            // Google Search Grounding Tool
-            JSONObject tool = new JSONObject();
-            tool.put("google_search", new JSONObject());
-
-            JSONArray toolsArray = new JSONArray();
-            toolsArray.put(tool);
-
-            // System Instruction
-            JSONObject systemInstructionPart = new JSONObject();
-            systemInstructionPart.put("text", "あなたはプロの料理研究家です。日本のユーザーに最適なレシピを提案します。");
-
-            JSONObject systemInstruction = new JSONObject();
-            systemInstruction.put("parts", new JSONArray().put(systemInstructionPart));
-
-            JSONObject payload = new JSONObject();
-            payload.put("contents", contentsArray);
-            payload.put("temperature", 0.7);
-            payload.put("tools", toolsArray); // Grounding Toolを追加
-            payload.put("systemInstruction", systemInstruction);
-
-            return payload.toString();
-        } catch (Exception e) {
-            Log.e(TAG, "JSONペイロードの構築に失敗", e);
-            return "{}";
-        }
-    }
-
-    /**
-     * APIレスポンス (JSON) から生成されたテキストを抽出する
-     */
-    private String parseResponse(String responseBody) {
-        try {
-            JSONObject json = new JSONObject(responseBody);
-
-            JSONArray candidates = json.getJSONArray("candidates");
-            if (candidates.length() > 0) {
-                JSONObject candidate = candidates.getJSONObject(0);
-                JSONObject content = candidate.getJSONObject("content");
-                JSONArray parts = content.getJSONArray("parts");
-                if (parts.length() > 0) {
-                    String rawText = parts.getJSONObject(0).getString("text");
-                    // エスケープシーケンスのデコード
-                    return rawText.replace("\\n", "\n")
-                                  .replace("\\\"", "\"")
-                                  .replace("\\\\", "\\");
-                }
-            }
-            return "レシピ生成に失敗しました。APIが応答をブロックした可能性があります。\n" + responseBody;
-
-        } catch (Exception e) {
-            Log.e(TAG, "APIレスポンスのパースに失敗: " + responseBody, e);
-            return "エラー: APIからの応答を読み取れませんでした。\n" + responseBody;
-        }
     }
 }
