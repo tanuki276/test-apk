@@ -16,7 +16,7 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 2. Java 17 のセットアップ (actions/setup-java@v4 は維持)
+      # 2. Java 17 のセットアップ
       - name: 2. Java 17 のセットアップ
         uses: actions/setup-java@v4
         with:
@@ -24,14 +24,17 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # 🚨 修正ステップ: Android SDKのセットアップを v3 の正しいパラメーター形式に戻す
+      # 3. Android SDK セットアップ (v3対応 - インデント修正済み)
       - name: 3. Android SDK セットアップ (v3対応)
-        uses: android-actions/setup-android@v3 # バージョンを v3 に戻す
+        uses: android-actions/setup-android@v3 
         with:
           # v3 で有効なパラメーターを使用
           android-sdk-version: '34' 
-          # v3 では個別のパッケージインストールには 'components' を使用
-          components: [ 'platform-tools', 'platforms;android-34', 'build-tools;34.0.0' ]
+          # 🚨 修正箇所: components リストを with: のインデントから2スペース深くしました
+          components: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
           
       - name: 4. gradlew に実行権限を付与
         run: chmod +x ./gradlew
