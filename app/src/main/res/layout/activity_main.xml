@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -8,150 +7,191 @@
     android:padding="16dp"
     tools:context=".MainActivity">
 
+    <!-- 1. 食材入力部分 -->
     <TextView
-        android:id="@+id/label_ingredients"
+        android:id="@+id/text_view_input_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）"
-        android:textSize="16sp"
+        android:text="利用可能な食材を入力 (例: 鶏肉、玉ねぎ、卵)"
         android:textStyle="bold"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/button_settings" />
 
+    <!-- 設定ボタン -->
+    <Button
+        android:id="@+id/button_settings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="設定"
+        android:textSize="12sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <EditText
         android:id="@+id/edit_text_ingredients"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="食材をコンマ区切りで入力"
+        android:hint="卵、醤油、バターなど"
+        android:minHeight="48dp"
         android:inputType="textMultiLine"
-        android:minLines="2"
-        android:maxLines="4"
-        android:gravity="top|start"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/label_ingredients"
+        app:layout_constraintTop_toBottomOf="@+id/text_view_input_title"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/button_camera"
-        android:autofillHints="" />
+        app:layout_constraintEnd_toStartOf="@+id/button_camera" />
 
     <ImageButton
         android:id="@+id/button_camera"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="8dp"
+        android:contentDescription="カメラで食材をスキャン"
         android:src="@android:drawable/ic_menu_camera"
-        android:contentDescription="食材の画像を撮影"
-        app:layout_constraintTop_toTopOf="@+id/edit_text_ingredients"
         app:layout_constraintBottom_toBottomOf="@+id/edit_text_ingredients"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/edit_text_ingredients" />
 
+
+    <!-- 2. 価格帯入力部分 (新規追加) -->
     <TextView
-        android:id="@+id/label_settings"
+        android:id="@+id/text_view_price_range_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="レシピ設定（難易度、ジャンル、時間、制約）"
-        android:textSize="16sp"
-        android:textStyle="bold"
         android:layout_marginTop="16dp"
+        android:text="価格帯 (一食あたり、オプション)"
+        android:textStyle="bold"
         app:layout_constraintTop_toBottomOf="@+id/edit_text_ingredients"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <EditText
+        android:id="@+id/edit_text_min_price"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:hint="最低価格 (円)"
+        android:inputType="number"
+        app:layout_constraintEnd_toStartOf="@+id/text_view_price_divider"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/text_view_price_range_title" />
+
+    <TextView
+        android:id="@+id/text_view_price_divider"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="〜"
+        android:textSize="24sp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintStart_toEndOf="@+id/edit_text_min_price"
+        app:layout_constraintEnd_toStartOf="@+id/edit_text_max_price"
+        app:layout_constraintTop_toTopOf="@+id/edit_text_min_price"
+        app:layout_constraintBottom_toBottomOf="@+id/edit_text_min_price"/>
+
+    <EditText
+        android:id="@+id/edit_text_max_price"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:hint="最高価格 (円)"
+        android:inputType="number"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/text_view_price_divider"
+        app:layout_constraintTop_toBottomOf="@+id/text_view_price_range_title" />
+
+
+    <!-- 3. レシピ設定 (Spinner) -->
+    <TextView
+        android:id="@+id/text_view_recipe_settings_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="レシピ設定 (難易度、ジャンル、時間、制約)"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@+id/edit_text_min_price"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- 難易度 -->
     <Spinner
         android:id="@+id/spinner_difficulty"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:entries="@array/difficulty_options"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/label_settings"
+        android:minHeight="48dp"
+        app:layout_constraintEnd_toStartOf="@+id/spinner_genre"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/spinner_genre" />
+        app:layout_constraintTop_toBottomOf="@+id/text_view_recipe_settings_title" />
 
+    <!-- ジャンル -->
     <Spinner
         android:id="@+id/spinner_genre"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:entries="@array/genre_options"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/label_settings"
+        android:minHeight="48dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/spinner_difficulty"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/text_view_recipe_settings_title" />
 
+    <!-- 調理時間 -->
     <Spinner
         android:id="@+id/spinner_time"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:entries="@array/time_options"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_difficulty"
+        android:minHeight="48dp"
+        app:layout_constraintEnd_toStartOf="@+id/spinner_diet"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/spinner_diet" />
+        app:layout_constraintTop_toBottomOf="@+id/spinner_difficulty" />
 
+    <!-- 食事制限 -->
     <Spinner
         android:id="@+id/spinner_diet"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:entries="@array/dietary_options"
-        android:layout_marginTop="8dp"
-        android:layout_marginStart="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_genre"
+        android:minHeight="48dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/spinner_time"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/spinner_genre" />
 
 
+    <!-- 4. レシピ生成ボタン -->
     <Button
         android:id="@+id/button_generate_recipe"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
         android:text="レシピを提案する"
-        android:layout_marginTop="24dp"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_time"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- 欠落していたID（progress_bar_loading）を持つProgressBarを追加しました。 -->
+        app:layout_constraintTop_toBottomOf="@+id/spinner_time" />
+        
+    <!-- 5. プログレスバー -->
     <ProgressBar
         android:id="@+id/progress_bar_loading"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:indeterminate="true"
         android:visibility="gone"
-        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@+id/button_generate_recipe"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- 6. レシピ出力エリア -->
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/progress_bar_loading"
-        app:layout_constraintStart_toStartOf="parent"
+        android:background="#f5f5f5"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/progress_bar_loading">
 
         <TextView
             android:id="@+id/text_view_recipe_output"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="ここにレシピがストリーミングで表示されます。"
-            android:textSize="16sp"
-            android:padding="8dp"
-            android:background="#EFEFEF"
-            android:textColor="@android:color/black" />
-
+            android:textSize="16sp" />
     </ScrollView>
 
-    <Button
-        android:id="@+id/button_settings"
-        style="@style/Widget.AppCompat.Button.Borderless"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="設定"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="-16dp"
-        android:layout_marginTop="-8dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
