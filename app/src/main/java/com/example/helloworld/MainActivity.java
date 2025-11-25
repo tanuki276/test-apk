@@ -4,9 +4,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton; // カメラボタンのために追加
 import android.widget.ProgressBar;
+import android.widget.Spinner; // Spinnerのために追加
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -23,12 +26,19 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    // UIコンポーネント (R.id.〇〇はactivity_main.xmlで定義されていることを前提とします)
+    // UIコンポーネント (R.id.〇〇はactivity_main.xmlで定義されています)
     private EditText ingredientInput;
-    private TextView recipeOutputText; // レシピ出力用TextView
+    private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
-    private ProgressBar loadingIndicator; // ローディング表示用
+    private ImageButton cameraButton; // 追加
+    private ProgressBar loadingIndicator;
+
+    // ★新規追加：レシピ設定用のSpinner
+    private Spinner spinnerDifficulty;
+    private Spinner spinnerGenre;
+    private Spinner spinnerTime;
+    private Spinner spinnerDiet;
 
     // APIキー関連
     private String apiKey = null; // 復号化されたAPIキーを保持
@@ -41,29 +51,48 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // activity_main.xmlを読み込みます
+        setContentView(R.layout.activity_main); 
 
         // ヘルパークラスとAPIクライアントの初期化
         keyStoreHelper = new KeyStoreHelper(this);
         preferencesHelper = new PreferencesHelper(this);
-        apiClient = new GeminiApiClient(); // GeminiApiClientを初期化
+        apiClient = new GeminiApiClient();
 
         // UIコンポーネントの初期化
         ingredientInput = findViewById(R.id.edit_text_ingredients);
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
-        // ★新規追加: レシピ表示とローディング
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
-        loadingIndicator.setVisibility(View.GONE); // 初期状態では非表示
+        loadingIndicator.setVisibility(View.GONE);
+        
+        // ★新規追加：カメラボタン（機能未実装、クリックイベントだけ設定）
+        cameraButton = findViewById(R.id.button_camera);
+
+        // ★新規追加：Spinnerの初期化
+        spinnerDifficulty = findViewById(R.id.spinner_difficulty);
+        spinnerGenre = findViewById(R.id.spinner_genre);
+        spinnerTime = findViewById(R.id.spinner_time);
+        spinnerDiet = findViewById(R.id.spinner_diet);
+        // Note: spinnerの項目 (@array/...) はres/values/arrays.xmlに定義されている必要があります。
+        // ここでは配列リソースが既にあるものとして進めます。
 
         // イベントリスナーの設定
         settingsButton.setOnClickListener(v -> openSettings());
         generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
+        cameraButton.setOnClickListener(v -> showFeatureNotImplemented()); // カメラ機能のデモ用
 
         // アプリ起動時にキーを読み出す処理を開始
         loadApiKey();
     }
+
+    /**
+     * カメラボタンの機能が未実装であることを示すトースト
+     */
+    private void showFeatureNotImplemented() {
+        Toast.makeText(this, "カメラによる食材認識機能は開発中です。", Toast.LENGTH_SHORT).show();
+    }
+
 
     /**
      * SettingsActivityから戻ってきた時にキーの再ロードを試みる
@@ -83,7 +112,6 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadApiKey() {
         try {
-            // 鍵が存在しない、または暗号化データがない場合は設定画面へ誘導
             if (!keyStoreHelper.isKeyExist() || !preferencesHelper.hasEncryptedKey()) {
                 Log.i(TAG, "API Key not configured or missing data. Opening settings.");
                 Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
@@ -91,11 +119,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // Keystoreから鍵を取得し、復号化用のCipherを初期化する
-            // 認証必須のため、このCipherはまだ使えない
             Cipher cipher = keyStoreHelper.getDecryptCipher();
-
-            // 生体認証が必要な場合は認証を開始する
             showBiometricPrompt(cipher);
 
         } catch (Exception e) {
@@ -115,7 +139,6 @@ public class MainActivity extends AppCompatActivity {
             this,
             executor,
             new BiometricPrompt.AuthenticationCallback() {
-                // 認証成功
                 @Override
                 public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
@@ -123,7 +146,6 @@ public class MainActivity extends AppCompatActivity {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
                         String ivString = preferencesHelper.getIv(); 
 
-                        // 認証成功したCipherで復号化を実行
                         apiKey = keyStoreHelper.decryptData(encryptedKey, ivString, result.getCryptoObject().getCipher());
 
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
@@ -137,7 +159,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                // 認証失敗
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
@@ -145,7 +166,6 @@ public class MainActivity extends AppCompatActivity {
                     generateRecipeButton.setEnabled(false);
                 }
 
-                // 認証エラー（端末非対応、キャンセルなど）
                 @Override
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
@@ -162,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
             .build();
 
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
-        generateRecipeButton.setEnabled(false); // 認証が終わるまでボタンは無効化
+        generateRecipeButton.setEnabled(false);
     }
 
 
@@ -190,20 +210,25 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // ★デモのため、難易度とジャンルはハードコードまたは仮のUIから取得した値を想定
-        // 実際のアプリではSpinnerなどから取得する必要があります
-        String difficulty = "難易度: 中級者"; // 仮の値
-        String genre = "ジャンル: イタリアン"; // 仮の値
+        // ★修正点：Spinnerから実際の選択値を取得する
+        String difficulty = spinnerDifficulty.getSelectedItem().toString();
+        String genre = spinnerGenre.getSelectedItem().toString();
+        // 時間と制約をプロンプトに追加するために結合
+        String timeConstraint = spinnerTime.getSelectedItem().toString();
+        String dietConstraint = spinnerDiet.getSelectedItem().toString();
         
+        // すべての制約を結合してAPIクライアントに渡す
+        String allConstraints = String.format("調理時間: %s, 食事制限: %s", timeConstraint, dietConstraint);
+
+
         // UI操作の準備
         recipeOutputText.setText("レシピをAIが考案中です...");
         generateRecipeButton.setEnabled(false);
         loadingIndicator.setVisibility(View.VISIBLE);
 
-        // APIクライアントの呼び出し
-        apiClient.generateRecipe(apiKey, ingredients, difficulty, genre, new GeminiApiClient.RecipeCallback() {
+        // APIクライアントの呼び出し (難易度、ジャンル、制約を渡す)
+        apiClient.generateRecipe(apiKey, ingredients, difficulty, genre, allConstraints, new GeminiApiClient.RecipeCallback() {
             
-            // onNewChunk はワンショット通信では全テキストを一度に受け取る
             @Override
             public void onNewChunk(String chunk) {
                 // UIスレッドで実行される
