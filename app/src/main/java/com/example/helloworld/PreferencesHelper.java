@@ -2,57 +2,84 @@ package com.example.liefantidia2;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Base64;
+import android.util.Log;
 
+import androidx.annotation.Nullable;
+
+// 暗号化されたデータとそのIV (Initialization Vector) をSharedPreferencesで管理するヘルパークラス
 public class PreferencesHelper {
-    private static final String PREFS_NAME = "api_key_prefs";
-    private static final String KEY_ENCRYPTED_API_KEY = "encrypted_api_key";
-    private static final String KEY_IV = "iv_for_decryption"; // IVを保存するキー
+    private static final String TAG = "PreferencesHelper";
+    private static final String PREFS_NAME = "ApiKeyPrefs";
+    private static final String PREF_IV = "initializationVector";
+    private static final String PREF_ENCRYPTED_KEY = "encryptedApiKey";
 
-    private final SharedPreferences sharedPreferences;
+    private final SharedPreferences prefs;
+
+    // 暗号化されたデータとそのIV (Initialization Vector) を保持するデータクラス
+    public static class EncryptedData {
+        public final byte[] encryptedBytes;
+        public final byte[] iv;
+
+        public EncryptedData(byte[] encryptedBytes, byte[] iv) {
+            this.encryptedBytes = encryptedBytes;
+            this.iv = iv;
+        }
+
+        // SharedPreferencesに保存するためにBase64文字列に変換
+        public String getEncryptedBase64() {
+            // Android Base64を使用
+            return Base64.encodeToString(encryptedBytes, Base64.DEFAULT);
+        }
+
+        public String getIvBase64() {
+            // Android Base64を使用
+            return Base64.encodeToString(iv, Base64.DEFAULT);
+        }
+    }
 
     public PreferencesHelper(Context context) {
-        sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    /**
-     * 暗号化されたAPIキーとIVを保存する
-     */
-    public void saveEncryptedData(String encryptedKey, String iv) {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString(KEY_ENCRYPTED_API_KEY, encryptedKey);
-        editor.putString(KEY_IV, iv);
-        editor.apply();
+    // APIキーをSharedPreferencesに保存（暗号化されたバイトとIVをBase64文字列として）
+    public void saveEncryptedData(EncryptedData encryptedData) {
+        prefs.edit()
+                .putString(PREF_ENCRYPTED_KEY, encryptedData.getEncryptedBase64())
+                .putString(PREF_IV, encryptedData.getIvBase64())
+                .apply();
+        Log.d(TAG, "Encrypted data saved to SharedPreferences.");
     }
 
-    /**
-     * 暗号化されたAPIキーを取得する
-     */
-    public String getEncryptedKey() {
-        return sharedPreferences.getString(KEY_ENCRYPTED_API_KEY, null);
+    // SharedPreferencesから暗号化されたデータを読み込む
+    @Nullable
+    public EncryptedData getEncryptedData() {
+        String encryptedBase64 = prefs.getString(PREF_ENCRYPTED_KEY, null);
+        String ivBase64 = prefs.getString(PREF_IV, null);
+
+        if (encryptedBase64 == null || ivBase64 == null) {
+            return null;
+        }
+
+        try {
+            // Base64文字列をバイト配列にデコード (Android Base64を使用)
+            byte[] encryptedBytes = Base64.decode(encryptedBase64, Base64.DEFAULT);
+            byte[] iv = Base64.decode(ivBase64, Base64.DEFAULT);
+            return new EncryptedData(encryptedBytes, iv);
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to decode Base64 data: " + e.getMessage());
+            return null;
+        }
     }
-    
-    /**
-     * IVを取得する
-     */
-    public String getIv() {
-        return sharedPreferences.getString(KEY_IV, null);
-    }
-    
-    /**
-     * 暗号化キーとIVの両方が存在するか確認する
-     */
+
+    // APIキーが保存されているかチェック
     public boolean hasEncryptedKey() {
-        // キーとIVの両方が存在する場合にのみtrueを返す
-        return sharedPreferences.contains(KEY_ENCRYPTED_API_KEY) && sharedPreferences.contains(KEY_IV);
+        return prefs.contains(PREF_ENCRYPTED_KEY) && prefs.contains(PREF_IV);
     }
 
-    /**
-     * 保存されているキーデータをすべてクリアする
-     */
-    public void clearEncryptedData() {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.remove(KEY_ENCRYPTED_API_KEY);
-        editor.remove(KEY_IV); // ★修正点★: IVも同時にクリアする
-        editor.apply();
+    // 保存されたキーを削除する
+    public void deleteEncryptedKey() {
+        prefs.edit().remove(PREF_ENCRYPTED_KEY).remove(PREF_IV).apply();
+        Log.d(TAG, "API Key data cleared from SharedPreferences.");
     }
 }
