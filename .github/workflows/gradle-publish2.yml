@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # ANDROID_HOME を設定し、GradleがSDKの場所を特定できるようにする
+      # setup-androidアクションが適切に設定するため、この行は残しておきます。
       ANDROID_HOME: ${{ github.workspace }}/.android-sdk
 
     steps:
@@ -34,32 +34,29 @@ jobs:
         run: rm -rf ~/.gradle/caches
 
       # ----------------------------------------------------
-      # 4.1. Android SDKコンポーネントのインストールとライセンス承諾
+      # 4.1. Android SDKのセットアップとコンポーネントインストール (アクションを使用)
       # ----------------------------------------------------
-      - name: 4.1. Android SDKコンポーネントのインストールとライセンス承諾
-        run: |
-          # SDKの場所をPATHに追加（sdkmanagerを使用可能にするため）
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools:$PATH"
-          
-          # 必要なPlatform (android-33) と Build Tools (33.0.2) をインストールし、ライセンスを承諾
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" "platform-tools" --sdk_root=$ANDROID_HOME
-          echo "必要なSDKコンポーネントをインストールし、ライセンスを承諾しました。"
+      # 以前のsdkmanager呼び出しを、信頼性の高い 'setup-android' アクションに置き換えます。
+      - name: 4.1. Android SDKのセットアップとコンポーネントインストール
+        uses: android-actions/setup-android@v3
+        with:
+          # プロジェクトの app/build.gradle の compileSdk (android-33) に合わせる
+          sdk-version: '33'
+          # プロジェクトの buildToolsVersion (33.0.2) に合わせる
+          build-tools: '33.0.2'
+          # ライセンス承諾もこのアクション内で自動的に処理されます。
 
       # ----------------------------------------------------
       # 4.5. キーストアファイルを復元し署名環境変数を設定 (Shellで条件判定)
       # ----------------------------------------------------
       - name: 4.5. キーストアファイルを復元し署名環境変数を設定
-        # 🚨 YAMLの'if'を削除し、ロジックを'run'ブロック内のShellに移しました。
         run: |
           echo "--- 署名ファイルと環境変数の設定を開始 ---"
 
-          # シークレット値を一時的なShell変数に格納
-          KEY_BASE64="${{ secrets.SIGNING_KEY_BASE64 }}"
-          
           # Shell内でシークレットが存在するかチェック
+          KEY_BASE64="${{ secrets.SIGNING_KEY_BASE64 }}"
           if [ -z "$KEY_BASE64" ]; then
             echo "secrets.SIGNING_KEY_BASE64 が設定されていないため、署名ステップをスキップします。"
-            # スキップする場合でも、後続の assembleRelease は実行されます (未署名になる可能性があります)
             exit 0
           fi
           
@@ -81,8 +78,8 @@ jobs:
       # ----------------------------------------------------
       - name: 5. リリースAPKのビルド (assembleRelease)
         run: |
-          # シェル内で ANDROID SDK のパスを既存の PATH に追加
-          export PATH="${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:$PATH"
+          # setup-androidアクションがPATHを設定してくれるため、手動でのPATH設定は不要ですが、念のため残しておきます。
+          # export PATH="${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:$PATH"
           
           # Gradleの実行
           ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
