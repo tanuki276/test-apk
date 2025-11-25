@@ -11,6 +11,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 
@@ -101,7 +102,8 @@ public class SettingsActivity extends AppCompatActivity {
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
                     Toast.makeText(getApplicationContext(), "認証エラー: " + errString, Toast.LENGTH_SHORT).show();
-                    preferencesHelper.deleteEncryptedKey(); // 認証失敗時はデータを削除
+                    // 認証失敗時は、再入力を促すために保存したデータを削除する（セキュリティ上の配慮）
+                    preferencesHelper.deleteEncryptedKey();
                     updateUiForSavedKey();
                 }
 
@@ -180,9 +182,17 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             keySavedPlaceholder.setVisibility(View.GONE);
             apiKeyInput.setVisibility(View.VISIBLE);
-            saveButton.setText("APIキーを保存"); 
+            saveButton.setText(R.string.button_save_key); 
             saveButton.setOnClickListener(v -> saveApiKey());
             apiKeyInput.setText(""); // 入力フィールドをクリア
         }
+    }
+    
+    // BiometricPropertiesクラスは、必要な認証方式を定義するために使用されます。
+    // 外部ファイルがないため、内部クラスとして定義します。
+    private static class BiometricProperties {
+        // 互換性のために必要な認証方式を定義します (生体認証またはデバイス認証)
+        public static final int REQUIRED_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL;
     }
 }
