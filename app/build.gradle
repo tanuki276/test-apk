@@ -30,7 +30,7 @@ android {
             // 💡 Debugビルドではデフォルトの署名が使われるため、ここでの署名設定は不要
         }
     }
-    
+
     // Java/Kotlinのターゲットバージョンは11を維持し、広く使われている環境に合わせます
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
