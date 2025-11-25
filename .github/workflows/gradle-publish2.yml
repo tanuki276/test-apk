@@ -1,5 +1,6 @@
 name: APK Java デバッグビルド
 
+# ワークフローの実行トリガー
 on:
   push:
     branches: [ main, master ]
@@ -7,17 +8,20 @@ on:
 
 jobs:
   build:
+    # 実行環境を指定
     runs-on: ubuntu-latest
-
+    
+    # ★修正点: SKIP_JDK_VERSION_CHECK をジョブレベルのenvに移動
     env:
-      ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+      # sdkmanagerがJDK 17を要求する問題をジョブ全体で回避する
+      SKIP_JDK_VERSION_CHECK: true 
 
     steps:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 修正: build.gradleのJavaターゲットに合わせ、JDK 11に変更
-      - name: 2. JDK 11のセットアップ
+      # build.gradleのJavaターゲットに合わせ、JDK 11を使用
+      - name: 2. JDK 11のセットアップとGradleキャッシュの有効化
         uses: actions/setup-java@v4
         with:
           java-version: '11' 
@@ -26,24 +30,22 @@ jobs:
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
-
-      - name: 4. Gradleシステムキャッシュを削除（オプション）
-        # CI環境ではキャッシュの整合性問題が起こりやすいため、このステップは維持します
-        run: rm -rf ~/.gradle/caches
-
-      # 修正: build.gradleのcompileSdkに合わせ、SDK 34に変更
-      - name: 5. Android SDK のセットアップ
+      
+      # build.gradleのcompileSdkに合わせ、SDK 34を使用
+      - name: 4. Android SDK のセットアップ (API 34)
         uses: android-actions/setup-android@v3
         with:
-          sdk-version: '34' # compileSdk 34に統一
-          build-tools: '34.0.0' # 34系最新版に変更
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+        # env: ブロックはジョブレベルに移動したため削除
 
-      - name: 6. デバッグAPKのビルド
+      - name: 5. デバッグAPKのビルド (assembleDebug)
         run: |
-          echo "署名なしでデバッグビルド (assembleDebug) を実行します。"
-          ./gradlew clean assembleDebug --no-daemon -Dgradle.parallel=false --stacktrace
+          echo "署名なしでデバッグビルドを実行します。"
+          ./gradlew clean assembleDebug --no-daemon --stacktrace
 
-      - name: 7. 成果物のアップロード
+      - name: 6. 成果物 (APKファイル) のアップロード
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
