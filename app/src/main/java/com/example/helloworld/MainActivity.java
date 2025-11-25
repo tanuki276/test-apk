@@ -19,7 +19,7 @@ import javax.crypto.Cipher;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
-    
+
     // UIコンポーネント
     private EditText ingredientInput;
     private Button generateRecipeButton;
@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         // activity_main.xml (レイアウトファイル) を読み込む
         setContentView(R.layout.activity_main); 
-        
+
         // ヘルパークラスの初期化
         keyStoreHelper = new KeyStoreHelper(this);
         preferencesHelper = new PreferencesHelper(this);
@@ -54,29 +54,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * SettingsActivityから戻ってきた時にキーの再ロードを試みる
+     */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 既にロードされていない、またはキーがクリアされている場合に再認証を試みる
+        if (apiKey == null && preferencesHelper.hasEncryptedKey()) {
+             loadApiKey();
+        }
+    }
+
+
+    /**
      * APIキーを安全なストレージからロードし、必要に応じて生体認証を要求する
      */
     private void loadApiKey() {
         try {
-            // 鍵が存在するかチェック
+            // 鍵が存在するかチェック (Keystoreに鍵がない＝認証必須鍵がない)
             if (!keyStoreHelper.isKeyExist()) {
                 Log.i(TAG, "API Key not configured. Opening settings.");
                 Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
-                openSettings();
+                // 鍵がない場合は設定画面へ誘導
+                openSettings(); 
                 return;
             }
 
-            // 暗号化されたキーが存在するかチェック
+            // 暗号化されたキーが存在するかチェック (SharedPreferencesにデータがない)
             if (!preferencesHelper.hasEncryptedKey()) {
                  Log.i(TAG, "Encrypted API Key not found. Opening settings.");
                  Toast.makeText(this, "APIキーを再設定してください。", Toast.LENGTH_LONG).show();
-                 openSettings();
+                 // 暗号化データがない場合は設定画面へ誘導
+                 openSettings(); 
                  return;
             }
 
             // Keystoreから鍵を取得し、復号化用のCipherを初期化する
             Cipher cipher = keyStoreHelper.getDecryptCipher();
-            
+
             // 生体認証が必要な場合は認証を開始する
             showBiometricPrompt(cipher);
 
@@ -105,7 +120,11 @@ public class MainActivity extends AppCompatActivity {
                     // 認証が成功したら、暗号化されたキーを復号化する
                     try {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
-                        apiKey = keyStoreHelper.decryptData(encryptedKey, cipher);
+                        String ivString = preferencesHelper.getIv(); // ★IVを取得
+                        
+                        // ★修正: decryptData に ivString を追加
+                        apiKey = keyStoreHelper.decryptData(encryptedKey, ivString, result.getCryptoObject().getCipher());
+                        
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
                         Toast.makeText(MainActivity.this, "APIキーの認証に成功しました", Toast.LENGTH_SHORT).show();
                         // 復号化成功後、ボタンを有効化する
@@ -113,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
                         Toast.makeText(MainActivity.this, "キーの復号化に失敗しました", Toast.LENGTH_LONG).show();
+                        generateRecipeButton.setEnabled(false);
                     }
                 }
 
@@ -130,7 +150,8 @@ public class MainActivity extends AppCompatActivity {
                     super.onAuthenticationError(errorCode, errString);
                     Log.w(TAG, "Authentication error: " + errString);
                     Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
-                    // エラー時に設定画面を開くなど、セキュリティ上の対応を検討
+                    generateRecipeButton.setEnabled(false);
+                    // ユーザーがキャンセルした場合（errorCode = 13: CANCELED）、ボタンを無効化する
                 }
             });
 
@@ -172,18 +193,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // ★高度なロジック（プロンプト生成、API通信、ストリーミング処理など）をこの後に追加する
+        // ここにAPI通信ロジック（GeminiApiClientの使用）を実装します
         Toast.makeText(this, "レシピ生成を開始します...", Toast.LENGTH_SHORT).show();
-        Log.d(TAG, "Starting generation with key: " + apiKey.substring(0, 5) + "..."); // キーの一部を表示（デバッグ用）
-    }
-
-    // SettingsActivityから戻ってきた時にキーの再ロードを試みる
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // 既にロードされていない、またはキーがクリアされている場合に再認証を試みる
-        if (apiKey == null && preferencesHelper.hasEncryptedKey()) {
-             loadApiKey();
-        }
+        Log.d(TAG, "Starting generation with key: " + apiKey.substring(0, 5) + "..."); 
+        
+        // TODO: GeminiApiClient を使ってレシピ生成リクエストを送信する処理を実装
     }
 }
