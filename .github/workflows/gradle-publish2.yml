@@ -1,70 +1,62 @@
-name: APK Java ビルド (最終安定化)
+name: APK Java ビルド (リリース)
 
 on:
   release:
     types: [created]
+
+  # メインブランチへのコード変更時に自動実行
   push:
     branches: [ main, master ] 
+
+  # 手動実行を許可
   workflow_dispatch: 
 
 jobs:
   build:
-    # 環境安定化のため ubuntu-22.04 に固定
-    runs-on: ubuntu-22.04 
+    runs-on: ubuntu-latest
+
+    # ----------------------------------------------------
+    # 🚨 最終修正: 環境変数の確実なセットアップ 🚨
+    # run:ブロックの外側で env: を使用し、子プロセスに確実に渡す
+    # ----------------------------------------------------
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+      # Android SDK toolsのパスをPATHに追加
+      PATH: ${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:${{ env.PATH }}
 
     steps:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 2. Java 17 のセットアップ (Gradleキャッシュ利用)
-      - name: 2. Java 17 のセットアップ
+      - name: 2. JDK 17のセットアップ
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle' # ユーザーの指摘に基づき、このキャッシュ設定に任せる
-
-      - name: 3. Android SDKパスの設定とツールのダウンロード
-        run: |
-          # SDKのインストールパスを定義
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          distribution: 'temurin'
+          # Android SDKの自動セットアップは無効（環境変数で手動設定するため）
           
-          # コマンドラインツールのダウンロードと展開
-          mkdir -p $HOME/android-sdk
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O android-clt.zip
-          unzip -q android-clt.zip -d $HOME/android-sdk/cmdline-tools
-          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-          rm android-clt.zip
-          
-          # sdkmanagerのパスをPATHに登録
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-
-      - name: 4. SDKコンポーネントのインストールとライセンス承認
-        run: |
-          # PATHが読み込まれた状態で sdkmanager を実行
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
-      - name: 5. gradlew に実行権限を付与
+      - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      # ユーザーの指摘に基づき、ステップ6 (キャッシュの強制削除) は削除しました。
+      # ----------------------------------------------------
+      # 🚨 強制リセットステップ 🚨
+      # ----------------------------------------------------
+      - name: 3.5. Gradleシステムキャッシュを強制削除
+        run: rm -rf ~/.gradle/caches
 
-      - name: 6. リリースAPKのビルド (assembleRelease)
-        run: |
-          # ユーザー提案: 環境変数とツールのPATHを明示的にエクスポートし、Gradleの環境認識を確実にする
-          export ANDROID_HOME=$HOME/android-sdk
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          export JAVA_HOME=$JAVA_HOME # JAVA_HOMEも明示的にエクスポート
-          
-          # ユーザー提案: ツールが確実に見えるように PATH にビルドツールとプラットフォームツールを追加
-          export PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/34.0.0:$PATH
+      # ----------------------------------------------------
+      # 4. リリースAPKのビルド (assembleRelease)
+      # ----------------------------------------------------
+      - name: 4. リリースAPKのビルド (assembleRelease)
+        # 🟢 --no-daemon: デーモンによる破損セッション情報の保持を無効化
+        # 🟢 -Dgradle.parallel=false: タスクの並列実行を無効化
+        # 🟢 --stacktrace: ログを詳細化し、エラーの根本原因を特定
+        run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
 
-          # Gradleの実行
-          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
-
-      - name: 7. リリースAPKの成果物をアップロード
+      # ----------------------------------------------------
+      # 成果物のアップロード
+      # ----------------------------------------------------
+      - name: 5. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
