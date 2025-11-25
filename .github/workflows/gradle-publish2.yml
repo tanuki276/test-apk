@@ -24,12 +24,36 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          
+          # Gradleキャッシュを有効化
+          cache: gradle
+
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
       - name: 4. Gradleシステムキャッシュを強制削除
         run: rm -rf ~/.gradle/caches
+
+      # ----------------------------------------------------
+      # 💡 追加ステップ: 4.5. キーストアファイルを復元し環境変数を設定
+      # ----------------------------------------------------
+      - name: 4.5. キーストアファイルを復元し署名環境変数を設定
+        # SIGNING_KEY_BASE64シークレットが存在することを確認
+        if: ${{ secrets.SIGNING_KEY_BASE64 != '' }}
+        run: |
+          echo "--- 署名ファイルと環境変数の設定を開始 ---"
+          
+          # 1. Base64データをデコードし、プロジェクトルートにファイルとして保存 (ファイル名は release.keystore)
+          echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 --decode > release.keystore
+          echo "キーストアファイル (release.keystore) をデコードしました。"
+          
+          # 2. 環境変数を設定 (Gradleの build.gradle が System.getenv() でアクセス可能にする)
+          # SIGNING_KEY_FILE にはデコードされたファイルの絶対パスを設定
+          echo "SIGNING_KEY_FILE=$(pwd)/release.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          
+          echo "--- 署名環境変数を $GITHUB_ENV に設定完了 ---"
 
       # ----------------------------------------------------
       # 5. リリースAPKのビルド (assembleRelease)
@@ -39,7 +63,7 @@ jobs:
           # シェル内で ANDROID SDK のパスを既存の PATH に追加
           export PATH="${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:$PATH"
           
-          # Gradleの実行
+          # Gradleの実行 (環境変数が自動で注入された状態で実行)
           ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
 
       # ----------------------------------------------------
