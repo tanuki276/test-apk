@@ -1,15 +1,10 @@
 name: APK Java ビルド (リリース)
 
 on:
-  # メイントリガー: GitHubリポジトリで新しいリリースが作成されたときに実行
   release:
     types: [created]
-
-  # 🟢 追加: メインブランチへのコード変更時に自動実行ううう
   push:
     branches: [ main, master ] 
-
-  # 手動実行を許可
   workflow_dispatch: 
 
 jobs:
@@ -25,7 +20,8 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # キャッシュ復元は無効 (以前の修正)
+          # 🚨 最終対策: GitHub ActionsのGradleキャッシュ機能を完全に無効化
+          cache: 'none' 
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
@@ -38,8 +34,7 @@ jobs:
       # 🚨 最終回避策: ビルドタスクの実行 (競合防止)
       # ----------------------------------------------------
       - name: 4. リリースAPKのビルド (assembleRelease)
-        # 🟢 --no-daemon: デーモンによる破損セッション情報の保持を無効化
-        # 🟢 -Dgradle.parallel=false: タスクの並列実行を無効化し、リソース競合を強制的に防ぐ
+        # --no-daemon と -Dgradle.parallel=false を使用
         run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
       # ----------------------------------------------------
@@ -49,6 +44,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
-          # APKの格納場所
           path: app/build/outputs/apk/release/
           retention-days: 7
