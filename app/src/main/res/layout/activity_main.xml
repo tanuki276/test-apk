@@ -8,6 +8,18 @@
     android:padding="16dp"
     tools:context=".MainActivity">
 
+    <!-- 設定ボタン: 右上隅に配置 -->
+    <Button
+        android:id="@+id/button_settings"
+        style="@style/Widget.AppCompat.Button.Borderless"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="設定"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginEnd="-16dp"
+        android:layout_marginTop="-8dp" />
+
     <TextView
         android:id="@+id/label_ingredients"
         android:layout_width="0dp"
@@ -66,7 +78,7 @@
         app:layout_constraintTop_toBottomOf="@+id/label_settings"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/spinner_genre" />
-    
+
     <Spinner
         android:id="@+id/spinner_genre"
         android:layout_width="0dp"
@@ -130,16 +142,19 @@
             android:textColor="@android:color/black" />
 
     </ScrollView>
-
-    <Button
-        android:id="@+id/button_settings"
-        style="@style/Widget.AppCompat.Button.Borderless"
+    
+    <!-- ここに不足していたProgressBarを追加します。 -->
+    <!-- MainActivity.java の findViewById(R.id.progress_bar_loading) の参照を解決します。 -->
+    <ProgressBar
+        android:id="@+id/progress_bar_loading"
+        style="?android:attr/progressBarStyleLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="設定"
+        android:visibility="gone"
+        android:indeterminate="true"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="-16dp"
-        android:layout_marginTop="-8dp" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
