@@ -16,7 +16,7 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 2. Java 17 のセットアップ (actions/setup-java@v4 は維持)
+      # 2. Java 17 のセットアップ (actions/setup-java@v4 は信頼できるため維持)
       - name: 2. Java 17 のセットアップ
         uses: actions/setup-java@v4
         with:
@@ -24,27 +24,39 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # 🚨 最終修正: Android SDK セットアップアクションを @v4 に確定し、パラメーターを修正
-      - name: 3. Android SDK セットアップ (v4確定)
-        uses: android-actions/setup-android@v4 # 👈 @v4 を使用
-        with:
-          # v4 で必要なパラメーターを使用
-          cmdline-tools-version: 'latest' # 最新のコマンドラインツールを使用
-          packages: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+      # 🚨 最終解決ステップ: SDKコンポーネントのパスを設定 (Actions公式のベストプラクティス)
+      - name: 3. Android SDKパスの設定
+        run: echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+
+      # 4. Android SDKを手動でインストール（公式sdkmanagerを使用）
+      - name: 4. コマンドラインツールのインストールとライセンス承認
+        run: |
+          mkdir -p $ANDROID_SDK_ROOT
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O android-clt.zip
+          unzip -q android-clt.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+          mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+          rm android-clt.zip
           
-      - name: 4. gradlew に実行権限を付与
+          # sdkmanagerのパスをPATHに追加
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          
+          # 🚨 ライセンスの自動承認 (必須)
+          yes | sdkmanager --licenses
+          
+          # 必要なSDKコンポーネントをインストール
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: 5. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 5. Gradleシステムキャッシュを強制削除
+      # 6. Gradleシステムキャッシュを強制削除 (安定化のため維持)
+      - name: 6. Gradleシステムキャッシュを強制削除
         run: rm -rf ~/.gradle/caches
 
-      - name: 6. リリースAPKのビルド (assembleRelease)
+      - name: 7. リリースAPKのビルド (assembleRelease)
         run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
-      - name: 7. リリースAPKの成果物をアップロード
+      - name: 8. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
