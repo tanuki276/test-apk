@@ -1,4 +1,4 @@
-package com.example.liefantidia;
+package com.example.liefantidia2;
 
 import android.content.Intent;
 import android.os.Bundle;
