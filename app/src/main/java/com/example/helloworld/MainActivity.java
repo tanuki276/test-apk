@@ -3,8 +3,11 @@ package com.example.liefantidia2;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -20,30 +23,39 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    // UIコンポーネント
+    // UIコンポーネント (R.id.〇〇はactivity_main.xmlで定義されていることを前提とします)
     private EditText ingredientInput;
+    private TextView recipeOutputText; // レシピ出力用TextView
     private Button generateRecipeButton;
     private Button settingsButton;
+    private ProgressBar loadingIndicator; // ローディング表示用
 
     // APIキー関連
     private String apiKey = null; // 復号化されたAPIキーを保持
     private KeyStoreHelper keyStoreHelper;
     private PreferencesHelper preferencesHelper;
 
+    // APIクライアント
+    private GeminiApiClient apiClient;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // activity_main.xml (レイアウトファイル) を読み込む
-        setContentView(R.layout.activity_main); 
+        setContentView(R.layout.activity_main); // activity_main.xmlを読み込みます
 
-        // ヘルパークラスの初期化
+        // ヘルパークラスとAPIクライアントの初期化
         keyStoreHelper = new KeyStoreHelper(this);
         preferencesHelper = new PreferencesHelper(this);
+        apiClient = new GeminiApiClient(); // GeminiApiClientを初期化
 
         // UIコンポーネントの初期化
         ingredientInput = findViewById(R.id.edit_text_ingredients);
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
+        // ★新規追加: レシピ表示とローディング
+        recipeOutputText = findViewById(R.id.text_view_recipe_output);
+        loadingIndicator = findViewById(R.id.progress_bar_loading);
+        loadingIndicator.setVisibility(View.GONE); // 初期状態では非表示
 
         // イベントリスナーの設定
         settingsButton.setOnClickListener(v -> openSettings());
@@ -71,25 +83,16 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadApiKey() {
         try {
-            // 鍵が存在するかチェック (Keystoreに鍵がない＝認証必須鍵がない)
-            if (!keyStoreHelper.isKeyExist()) {
-                Log.i(TAG, "API Key not configured. Opening settings.");
+            // 鍵が存在しない、または暗号化データがない場合は設定画面へ誘導
+            if (!keyStoreHelper.isKeyExist() || !preferencesHelper.hasEncryptedKey()) {
+                Log.i(TAG, "API Key not configured or missing data. Opening settings.");
                 Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
-                // 鍵がない場合は設定画面へ誘導
                 openSettings(); 
                 return;
             }
 
-            // 暗号化されたキーが存在するかチェック (SharedPreferencesにデータがない)
-            if (!preferencesHelper.hasEncryptedKey()) {
-                 Log.i(TAG, "Encrypted API Key not found. Opening settings.");
-                 Toast.makeText(this, "APIキーを再設定してください。", Toast.LENGTH_LONG).show();
-                 // 暗号化データがない場合は設定画面へ誘導
-                 openSettings(); 
-                 return;
-            }
-
             // Keystoreから鍵を取得し、復号化用のCipherを初期化する
+            // 認証必須のため、このCipherはまだ使えない
             Cipher cipher = keyStoreHelper.getDecryptCipher();
 
             // 生体認証が必要な場合は認証を開始する
@@ -98,7 +101,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            // 重大なエラーのため、設定画面に誘導
             openSettings();
         }
     }
@@ -108,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void showBiometricPrompt(Cipher cipher) {
         Executor executor = ContextCompat.getMainExecutor(this);
-        
+
         BiometricPrompt biometricPrompt = new BiometricPrompt(
             this,
             executor,
@@ -117,22 +119,21 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
-                    // 認証が成功したら、暗号化されたキーを復号化する
                     try {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
-                        String ivString = preferencesHelper.getIv(); // ★IVを取得
-                        
-                        // ★修正: decryptData に ivString を追加
+                        String ivString = preferencesHelper.getIv(); 
+
+                        // 認証成功したCipherで復号化を実行
                         apiKey = keyStoreHelper.decryptData(encryptedKey, ivString, result.getCryptoObject().getCipher());
-                        
+
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
                         Toast.makeText(MainActivity.this, "APIキーの認証に成功しました", Toast.LENGTH_SHORT).show();
-                        // 復号化成功後、ボタンを有効化する
                         generateRecipeButton.setEnabled(true);
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
                         Toast.makeText(MainActivity.this, "キーの復号化に失敗しました", Toast.LENGTH_LONG).show();
                         generateRecipeButton.setEnabled(false);
+                        apiKey = null;
                     }
                 }
 
@@ -151,18 +152,15 @@ public class MainActivity extends AppCompatActivity {
                     Log.w(TAG, "Authentication error: " + errString);
                     Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
                     generateRecipeButton.setEnabled(false);
-                    // ユーザーがキャンセルした場合（errorCode = 13: CANCELED）、ボタンを無効化する
                 }
             });
 
-        // 認証ダイアログの情報設定
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
             .setTitle("セキュリティ認証")
             .setSubtitle("APIキーを使用するため、指紋またはPINが必要です。")
-            .setNegativeButtonText("設定画面へ") // 認証エラー時のフォールバック先
+            .setNegativeButtonText("設定画面へ")
             .build();
 
-        // 認証開始
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
         generateRecipeButton.setEnabled(false); // 認証が終わるまでボタンは無効化
     }
@@ -177,12 +175,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * レシピ生成処理を開始する (API通信ロジックはここに追加)
+     * レシピ生成処理を開始する (API通信ロジックを実装)
      */
     private void startRecipeGeneration() {
         if (apiKey == null || apiKey.isEmpty()) {
             Toast.makeText(this, "APIキーがロードされていません。認証してください。", Toast.LENGTH_LONG).show();
-            // 未認証なら再度ロードを試みる
             loadApiKey();
             return;
         }
@@ -192,11 +189,43 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "食材を入力してください。", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        // ここにAPI通信ロジック（GeminiApiClientの使用）を実装します
-        Toast.makeText(this, "レシピ生成を開始します...", Toast.LENGTH_SHORT).show();
-        Log.d(TAG, "Starting generation with key: " + apiKey.substring(0, 5) + "..."); 
         
-        // TODO: GeminiApiClient を使ってレシピ生成リクエストを送信する処理を実装
+        // ★デモのため、難易度とジャンルはハードコードまたは仮のUIから取得した値を想定
+        // 実際のアプリではSpinnerなどから取得する必要があります
+        String difficulty = "難易度: 中級者"; // 仮の値
+        String genre = "ジャンル: イタリアン"; // 仮の値
+        
+        // UI操作の準備
+        recipeOutputText.setText("レシピをAIが考案中です...");
+        generateRecipeButton.setEnabled(false);
+        loadingIndicator.setVisibility(View.VISIBLE);
+
+        // APIクライアントの呼び出し
+        apiClient.generateRecipe(apiKey, ingredients, difficulty, genre, new GeminiApiClient.RecipeCallback() {
+            
+            // onNewChunk はワンショット通信では全テキストを一度に受け取る
+            @Override
+            public void onNewChunk(String chunk) {
+                // UIスレッドで実行される
+                recipeOutputText.setText(chunk);
+            }
+
+            @Override
+            public void onComplete() {
+                // UIスレッドで実行される
+                generateRecipeButton.setEnabled(true);
+                loadingIndicator.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this, "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(String error) {
+                // UIスレッドで実行される
+                generateRecipeButton.setEnabled(true);
+                loadingIndicator.setVisibility(View.GONE);
+                recipeOutputText.setText("エラーが発生しました:\n" + error);
+                Toast.makeText(MainActivity.this, "API呼び出しに失敗: " + error, Toast.LENGTH_LONG).show();
+            }
+        });
     }
 }
