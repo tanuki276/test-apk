@@ -5,7 +5,7 @@ on:
   release:
     types: [created]
 
-  # 🟢 追加: メインブランチへのコード変更時に自動実行うう
+  # 🟢 追加: メインブランチへのコード変更時に自動実行ううう
   push:
     branches: [ main, master ] 
 
