@@ -4,194 +4,201 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
     tools:context=".MainActivity">
 
-    <!-- 1. 食材入力部分 -->
-    <TextView
-        android:id="@+id/text_view_input_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="利用可能な食材を入力 (例: 鶏肉、玉ねぎ、卵)"
-        android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/button_settings" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="?attr/android:colorBackground">
 
-    <!-- 設定ボタン -->
-    <Button
-        android:id="@+id/button_settings"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="設定"
-        android:textSize="12sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <EditText
-        android:id="@+id/edit_text_ingredients"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:hint="卵、醤油、バターなど"
-        android:minHeight="48dp"
-        android:inputType="textMultiLine"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_input_title"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/button_camera" />
-
-    <ImageButton
-        android:id="@+id/button_camera"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="8dp"
-        android:contentDescription="カメラで食材をスキャン"
-        android:src="@android:drawable/ic_menu_camera"
-        app:layout_constraintBottom_toBottomOf="@+id/edit_text_ingredients"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/edit_text_ingredients" />
-
-
-    <!-- 2. 価格帯入力部分 (新規追加) -->
-    <TextView
-        android:id="@+id/text_view_price_range_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="価格帯 (一食あたり、オプション)"
-        android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@+id/edit_text_ingredients"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <EditText
-        android:id="@+id/edit_text_min_price"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:hint="最低価格 (円)"
-        android:inputType="number"
-        app:layout_constraintEnd_toStartOf="@+id/text_view_price_divider"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_price_range_title" />
-
-    <TextView
-        android:id="@+id/text_view_price_divider"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="〜"
-        android:textSize="24sp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        app:layout_constraintStart_toEndOf="@+id/edit_text_min_price"
-        app:layout_constraintEnd_toStartOf="@+id/edit_text_max_price"
-        app:layout_constraintTop_toTopOf="@+id/edit_text_min_price"
-        app:layout_constraintBottom_toBottomOf="@+id/edit_text_min_price"/>
-
-    <EditText
-        android:id="@+id/edit_text_max_price"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:hint="最高価格 (円)"
-        android:inputType="number"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/text_view_price_divider"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_price_range_title" />
-
-
-    <!-- 3. レシピ設定 (Spinner) -->
-    <TextView
-        android:id="@+id/text_view_recipe_settings_title"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="レシピ設定 (難易度、ジャンル、時間、制約)"
-        android:textStyle="bold"
-        app:layout_constraintTop_toBottomOf="@+id/edit_text_min_price"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- 難易度 -->
-    <Spinner
-        android:id="@+id/spinner_difficulty"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toStartOf="@+id/spinner_genre"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_recipe_settings_title" />
-
-    <!-- ジャンル -->
-    <Spinner
-        android:id="@+id/spinner_genre"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/spinner_difficulty"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_recipe_settings_title" />
-
-    <!-- 調理時間 -->
-    <Spinner
-        android:id="@+id/spinner_time"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toStartOf="@+id/spinner_diet"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_difficulty" />
-
-    <!-- 食事制限 -->
-    <Spinner
-        android:id="@+id/spinner_diet"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/spinner_time"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_genre" />
-
-
-    <!-- 4. レシピ生成ボタン -->
-    <Button
-        android:id="@+id/button_generate_recipe"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="レシピを提案する"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/spinner_time" />
-        
-    <!-- 5. プログレスバー -->
-    <ProgressBar
-        android:id="@+id/progress_bar_loading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@+id/button_generate_recipe"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <!-- 6. レシピ出力エリア -->
-    <ScrollView
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:background="#f5f5f5"
-        android:padding="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/progress_bar_loading">
-
-        <TextView
-            android:id="@+id/text_view_recipe_output"
+        <!-- Header and Settings Button -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="ここにレシピがストリーミングで表示されます。"
-            android:textSize="16sp" />
-    </ScrollView>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="8dp">
 
+            <TextView
+                android:id="@+id/app_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:text="@string/app_name"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary" />
+
+            <Button
+                android:id="@+id/button_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="@string/button_settings"
+                style="@style/Widget.Material3.Button.TextButton" />
+        </RelativeLayout>
+
+
+        <!-- Scrollable Content Area -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- 1. Ingredient Input & Camera -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_ingredients"
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/edit_text_ingredients"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/hint_ingredients"
+                        android:inputType="text"
+                        android:maxLines="3"
+                        android:minHeight="48dp" />
+
+                    <ImageButton
+                        android:id="@+id/button_camera"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:contentDescription="@string/content_description_camera"
+                        android:src="@drawable/ic_camera_alt"
+                        android:padding="12dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        app:tint="?attr/colorPrimary"
+                        tools:ignore="RedundantDescription" />
+                </LinearLayout>
+
+                <!-- 2. Recipe Settings (Spinners) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_settings_title"
+                    android:textStyle="bold"
+                    android:layout_marginTop="16dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_difficulty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_genre"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+
+                <Spinner
+                    android:id="@+id/spinner_diet"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp" />
+                    
+                <!-- 3. Price Range Input (New Feature) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_price_range"
+                    android:textStyle="bold"
+                    android:layout_marginTop="16dp" />
+                    
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    
+                    <EditText
+                        android:id="@+id/edit_text_min_price"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/hint_min_price"
+                        android:inputType="number"
+                        android:minHeight="48dp" />
+                        
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:text="〜"
+                        android:textSize="24sp" />
+                        
+                    <EditText
+                        android:id="@+id/edit_text_max_price"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/hint_max_price"
+                        android:inputType="number"
+                        android:minHeight="48dp" />
+                </LinearLayout>
+
+                <!-- 4. Output Area -->
+                <TextView
+                    android:id="@+id/text_view_recipe_output"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:padding="8dp"
+                    android:minHeight="150dp"
+                    android:text="@string/text_recipe_initial"
+                    android:background="@drawable/rounded_border"
+                    android:scrollbars="vertical"
+                    android:fadeScrollbars="false"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Fixed Bottom Area -->
+        <ProgressBar
+            android:id="@+id/progress_bar_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:visibility="gone"
+            android:layout_marginTop="8dp"
+            android:indeterminateTint="?attr/colorPrimary" />
+
+        <Button
+            android:id="@+id/button_generate_recipe"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/button_generate_recipe"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp" />
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
