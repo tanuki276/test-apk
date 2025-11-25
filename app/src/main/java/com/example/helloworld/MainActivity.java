@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 
@@ -240,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
             .setTitle("セキュリティ認証")
             .setSubtitle("APIキーを使用するため、指紋またはPINが必要です。")
             .setNegativeButtonText("キャンセル")
-            .setAllowedAuthenticators(BiometricProperties.REQUIRED_AUTHENTICATORS) // BiometricPropertiesを追加
+            .setAllowedAuthenticators(BiometricProperties.REQUIRED_AUTHENTICATORS) // BiometricPropertiesを使用
             .build();
 
         // BiometricPromptにCipherをCryptoObjectとして渡す
@@ -355,5 +356,13 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "API呼び出しに失敗: " + error, Toast.LENGTH_LONG).show();
             }
         });
+    }
+    
+    // BiometricPropertiesクラスは、必要な認証方式を定義するために使用されます。
+    // 外部ファイルがないため、内部クラスとして定義します。
+    private static class BiometricProperties {
+        // 互換性のために必要な認証方式を定義します (生体認証またはデバイス認証)
+        public static final int REQUIRED_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL;
     }
 }
