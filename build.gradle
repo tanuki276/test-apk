@@ -1,34 +1,24 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-// 必須: plugins {} ブロックをファイルの最上位に配置
 plugins {
+    // Android Gradle Plugin (AGP) 8.2.2 を使用
     id 'com.android.application' version '8.2.2' apply false 
+    
+    // Kotlin Gradle Plugin (KGP) 1.9.0 を使用（Javaプロジェクトでも必須）
     id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
-    id 'maven-publish' apply false // maven-publishもapp-levelでなく、ルートに定義
+    
+    id 'maven-publish' apply false
 }
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        // AGP 8.2.2で固定
-        classpath 'com.android.tools.build:gradle:8.2.2'
-        
-        // Kotlinプラグインのバージョンをここで参照
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${ext.kotlin_version}"
-    }
-}
-
-// 修正点: 'ext.kotlin_version' を 'buildscript' ブロックの後に移動し、
-// Groovyスクリプトコンパイルエラーを回避
-ext.kotlin_version = '1.9.0'
-
+// 従来の buildscript {} や ext.kotlin_version の定義は、この現代的なプラグイン方式では不要です。
 
 allprojects {
     repositories {
         google()
         mavenCentral()
     }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
