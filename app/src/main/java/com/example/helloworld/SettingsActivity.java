@@ -72,32 +72,28 @@ public class SettingsActivity extends AppCompatActivity {
             // 1. 既存のキーがある場合は削除し、新規作成する（IVを確実にリセットするため）
             if (keyStoreHelper.isKeyExist()) {
                 keyStoreHelper.deleteKey();
-                Log.d(TAG, "Existing Keystore key deleted for fresh setup.");
+                preferencesHelper.clearEncryptedData(); // PreferencesのIVもクリア
+                Log.d(TAG, "Existing Keystore key and preferences data deleted for fresh setup.");
             }
             
-            // 2. 新しいキーを生成する（新しい鍵とIVのために）
+            // 2. 新しいキーを生成する
             keyStoreHelper.generateNewKey();
             
             // 3. APIキーを暗号化
             KeyStoreHelper.EncryptedData encryptedData = keyStoreHelper.encryptData(inputKey);
 
-            // 4. 暗号化データとIVをPreferencesに保存 (★IVの保存を確実にするため、明示的にチェック)
-            if (encryptedData.iv != null && !encryptedData.iv.isEmpty()) {
-                preferencesHelper.saveEncryptedData(encryptedData.encryptedData, encryptedData.iv);
-                Log.d(TAG, "Encrypted key and IV successfully saved to SharedPreferences.");
+            // 4. 暗号化データとIVをPreferencesに保存
+            preferencesHelper.saveEncryptedData(encryptedData.encryptedData, encryptedData.iv);
+            Log.d(TAG, "Encrypted key and IV successfully saved to SharedPreferences.");
                 
-                // 5. 成功トーストを表示し、画面を閉じる
-                Toast.makeText(this, "APIキーを安全に保存しました。", Toast.LENGTH_LONG).show();
-                displayCurrentKeyStatus(); // UIを更新
-                finish(); // MainActivityに戻ることで、再認証プロセスが開始される
-            } else {
-                 // IVが取得できなかった場合のエラー処理
-                throw new Exception("Encryption failed to generate a valid IV (Initialization Vector).");
-            }
+            // 5. 成功トーストを表示し、画面を閉じる
+            Toast.makeText(this, "APIキーを安全に保存しました。", Toast.LENGTH_LONG).show();
+            displayCurrentKeyStatus(); // UIを更新
+            finish(); // MainActivityに戻ることで、再認証プロセスが開始される
 
         } catch (Exception e) {
             Log.e(TAG, "Save Error: " + e.getMessage(), e);
-            // 鍵の存在チェックエラーは特に処理が必要。鍵の生成に失敗した場合も含む。
+            
             String errorMessage;
             if (e.getMessage() != null && e.getMessage().contains("User authentication required")) {
                 // デバイスに指紋やPINロックが設定されていない場合のヒント
