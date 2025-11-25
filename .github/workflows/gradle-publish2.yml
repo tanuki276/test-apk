@@ -16,24 +16,34 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: 2. Android SDKとJava環境のセットアップ
-        # 🚨 修正: アクションのバージョンを最新の安定版 @v4 に変更
+      # 🚨 修正ステップ 1: Java 17 のセットアップを公式アクションで分離
+      - name: 2. Java 17 のセットアップ
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle' # Gradleキャッシュを有効化
+
+      # 🚨 修正ステップ 2: Android SDKのセットアップをv4の正しいパラメーターで実行
+      - name: 3. Android SDK セットアップ (v4対応)
         uses: android-actions/setup-android@v3
         with:
-          java-version: '17'
-          android-sdk-version: '34'
-          cache-key: 'none' # キャッシュを無効化
+          # v4では古い 'android-sdk-version' の代わりに 'packages' を使用します。
+          packages: |
+            'platform-tools'
+            'platforms;android-34' # compileSdk 34に必要なパッケージ
+            'build-tools;34.0.0'
 
-      - name: 3. gradlew に実行権限を付与
+      - name: 4. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 4. Gradleシステムキャッシュを強制削除
+      - name: 5. Gradleシステムキャッシュを強制削除
         run: rm -rf ~/.gradle/caches
 
-      - name: 5. リリースAPKのビルド (assembleRelease)
+      - name: 6. リリースAPKのビルド (assembleRelease)
         run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
-      - name: 6. リリースAPKの成果物をアップロード
+      - name: 7. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
