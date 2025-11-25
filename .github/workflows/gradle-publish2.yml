@@ -1,4 +1,4 @@
-Name: APK Java ビルド (最終安定化)
+name: APK Java ビルド (最終安定化)
 
 on:
   release:
@@ -9,41 +9,28 @@ on:
 
 jobs:
   build:
-    # 環境安定化のため ubuntu-22.04 に固定
     runs-on: ubuntu-22.04 
 
     steps:
       - name: 1. リポジトリのチェックアウト
-        # 標準の actions/checkout は維持
         uses: actions/checkout@v4
 
-      # 🚨 最終手段: actions/setup-java を廃止し、専門のアクションに切り替える
       - name: 2. Android SDKとJava環境のセットアップ
-        # 安定性と専門性の高い action を利用
         uses: actions/setup-android@v3
         with:
-          # JDK 17とSDKのセットアップをこのアクションに任せる
           java-version: '17'
           android-sdk-version: '34'
-          # キャッシュを内部的に無効化
           cache-key: 'none'
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      # 念のため、ローカルキャッシュも強制削除
       - name: 4. Gradleシステムキャッシュを強制削除
         run: rm -rf ~/.gradle/caches
 
-      # ----------------------------------------------------
-      # 最終ビルドタスクの実行
-      # ----------------------------------------------------
       - name: 5. リリースAPKのビルド (assembleRelease)
-        # --no-daemon -Dgradle.parallel=false は維持
         run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
-      # ----------------------------------------------------
-      # 成果物のアップロード
       - name: 6. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
