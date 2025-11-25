@@ -18,6 +18,7 @@ import java.security.cert.CertificateException;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException; // このインポートはすでにあるため問題なし
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
@@ -26,7 +27,7 @@ public class KeyStoreHelper {
     private static final String TAG = "KeyStoreHelper";
     // Keystoreに鍵を保存する際の固有のエイリアス（名前）
     private static final String KEY_ALIAS = "AIRecipeKey";
-    
+
     // 暗号化に使用する設定
     private static final String ANDROID_KEY_STORE = "AndroidKeyStore";
     private static final String ENCRYPTION_ALGORITHM = KeyProperties.KEY_ALGORITHM_AES;
@@ -95,34 +96,36 @@ public class KeyStoreHelper {
             generateNewKey();
         }
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-        
+
         // 暗号化用のCipherを初期化（認証は不要）
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+        // Cipher.getInstance() は NoSuchPaddingException, NoSuchAlgorithmException をスローする
+        Cipher cipher = Cipher.getInstance(TRANSFORMATION); 
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
 
         // 暗号化を実行
         byte[] encryptedBytes = cipher.doFinal(dataToEncrypt.getBytes("UTF-8"));
-        
+
         // 初期化ベクトル (IV) も復号化のために保存する必要がある
         byte[] iv = cipher.getIV();
-        
+
         // Base64エンコードして、文字列として保存可能にする
         String encryptedDataString = Base64.encodeToString(encryptedBytes, Base64.DEFAULT);
         String ivString = Base64.encodeToString(iv, Base64.DEFAULT);
 
         return new EncryptedData(encryptedDataString, ivString);
     }
-    
+
     /**
      * 復号化用に初期化されたCipherオブジェクトを取得する
      * MainActivityで生体認証を行う直前に呼び出される
      */
     public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, 
-            InvalidKeyException, NoSuchProviderException {
+            InvalidKeyException, NoSuchProviderException, NoSuchPaddingException { // 🚨 ここに NoSuchPaddingException を追加
         
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-        
+
         // Cipherを復号化モードで初期化。認証必須のため、この時点では復号化はできない。
+        // ここで Cipher.getInstance() が NoSuchPaddingException をスローする
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.DECRYPT_MODE, secretKey); 
         // 実際の復号化は、BiometricPromptのCryptoObject経由で認証成功後に行われる
@@ -138,7 +141,7 @@ public class KeyStoreHelper {
      * @param cipher 認証に成功して使えるようになったCipherオブジェクト
      */
     public String decryptData(String encryptedDataString, String ivString, Cipher cipher) throws Exception {
-        
+
         // 保存されたIVと暗号化データをデコード
         byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
         byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
