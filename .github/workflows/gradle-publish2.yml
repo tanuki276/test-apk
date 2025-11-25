@@ -18,7 +18,6 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # --- 【変更箇所】 ---
       # 2. SDKツール実行用にJDK 17をセットアップ
       - name: 2. Android SDK Tool実行のためのJDK 17を一時的にセットアップ
         uses: actions/setup-java@v4
@@ -30,9 +29,8 @@ jobs:
       - name: 3. Android SDK のインストールとライセンス同意
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
+          # 【修正点】パッケージリストを単一行のスペース区切りに修正
+          packages: 'platforms;android-34 build-tools;34.0.0'
         # このステップは、Step 2で設定されたJDK 17環境で実行されます
 
       # 4. アプリビルド用にJDK 11に戻す
@@ -42,7 +40,6 @@ jobs:
           java-version: '11' 
           distribution: 'temurin'
           cache: gradle
-      # --- 【変更箇所 終了】 ---
 
       - name: 5. gradlew に実行権限を付与
         run: chmod +x ./gradlew
