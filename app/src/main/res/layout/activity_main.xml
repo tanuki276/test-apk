@@ -1,67 +1,276 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    tools:context=".SettingsActivity">
+    android:fillViewport="true"
+    android:background="#F5F5F5"
+    tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/text_view_settings_title"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/settings_title"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="?attr/colorPrimary"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <TextView
-        android:id="@+id/text_view_api_key_description"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/settings_description"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_settings_title" />
+        <!-- Title and Settings Button -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
 
-    <EditText
-        android:id="@+id/edit_text_api_key"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:hint="@string/settings_hint_api_key"
-        android:inputType="textPassword"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_api_key_description" />
+            <TextView
+                android:id="@+id/text_app_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AIレシピメーカー"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="#333333"
+                android:layout_centerVertical="true"/>
 
-    <Button
-        android:id="@+id/button_save_api_key"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="@string/button_save_key"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/edit_text_api_key" />
+            <!-- R.id.button_settings -->
+            <Button
+                android:id="@+id/button_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/button_settings"
+                android:backgroundTint="#FF9800"
+                android:textColor="@android:color/white"
+                android:layout_alignParentEnd="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"/>
+        </RelativeLayout>
 
-    <TextView
-        android:id="@+id/text_view_security_info"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="@string/security_note"
-        android:textSize="12sp"
-        android:textColor="@android:color/darker_gray"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/button_save_api_key" />
+        <!-- 1. Ingredient Input (R.id.edit_text_ingredients) -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="利用可能な食材 (カンマ区切り)"
+            android:textStyle="bold"
+            android:textColor="#555555"
+            android:layout_marginBottom="4dp"/>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <EditText
+            android:id="@+id/edit_text_ingredients"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/ingredients_hint"
+            android:inputType="text"
+            android:padding="12dp"
+            android:background="@drawable/rounded_edittext_bg"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Camera Button (R.id.button_camera) -->
+        <Button
+            android:id="@+id/button_camera"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_camera"
+            android:backgroundTint="#4CAF50"
+            android:textColor="@android:color/white"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- 2. Price Range Input (R.id.edit_text_min_price, R.id.edit_text_max_price) -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="希望の価格帯 (円)"
+            android:textStyle="bold"
+            android:textColor="#555555"
+            android:layout_marginBottom="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <EditText
+                android:id="@+id/edit_text_min_price"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/min_price_hint"
+                android:inputType="number"
+                android:padding="12dp"
+                android:background="@drawable/rounded_edittext_bg"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="〜"
+                android:textSize="20sp"
+                android:layout_gravity="center_vertical"
+                android:textColor="#333333"/>
+
+            <EditText
+                android:id="@+id/edit_text_max_price"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/max_price_hint"
+                android:inputType="number"
+                android:padding="12dp"
+                android:background="@drawable/rounded_edittext_bg"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
+
+        <!-- 3. Option Spinners (R.id.spinner_difficulty, R.id.spinner_genre) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <!-- Difficulty -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="8dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="難易度"
+                    android:textStyle="bold"
+                    android:textColor="#555555"
+                    android:layout_marginBottom="4dp"/>
+                <Spinner
+                    android:id="@+id/spinner_difficulty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_spinner_bg"
+                    android:entries="@array/difficulty_array"
+                    android:padding="8dp"/>
+            </LinearLayout>
+
+            <!-- Genre -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="8dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="ジャンル"
+                    android:textStyle="bold"
+                    android:textColor="#555555"
+                    android:layout_marginBottom="4dp"/>
+                <Spinner
+                    android:id="@+id/spinner_genre"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_spinner_bg"
+                    android:entries="@array/genre_array"
+                    android:padding="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 4. Option Spinners (R.id.spinner_time, R.id.spinner_diet) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
+
+            <!-- Time -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginEnd="8dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="調理時間"
+                    android:textStyle="bold"
+                    android:textColor="#555555"
+                    android:layout_marginBottom="4dp"/>
+                <Spinner
+                    android:id="@+id/spinner_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_spinner_bg"
+                    android:entries="@array/time_array"
+                    android:padding="8dp"/>
+            </LinearLayout>
+
+            <!-- Diet -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="8dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="食事制限"
+                    android:textStyle="bold"
+                    android:textColor="#555555"
+                    android:layout_marginBottom="4dp"/>
+                <Spinner
+                    android:id="@+id/spinner_diet"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_spinner_bg"
+                    android:entries="@array/diet_array"
+                    android:padding="8dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 5. Generate Button (R.id.button_generate_recipe) -->
+        <Button
+            android:id="@+id/button_generate_recipe"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/button_generate_recipe"
+            android:backgroundTint="#007BFF"
+            android:textColor="@android:color/white"
+            android:padding="16dp"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Loading Indicator (R.id.progress_bar_loading) -->
+        <ProgressBar
+            android:id="@+id/progress_bar_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:visibility="gone"
+            tools:visibility="visible"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- 6. Recipe Output Area (R.id.text_view_recipe_output) -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="生成されたレシピ"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/text_view_recipe_output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:background="@drawable/rounded_output_bg"
+            android:text="@string/recipe_output_placeholder"
+            android:textColor="#333333"
+            android:textSize="14sp"
+            android:minHeight="150dp"/>
+
+    </LinearLayout>
+</ScrollView>
