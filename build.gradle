@@ -5,16 +5,11 @@ plugins {
 
     // Kotlin Gradle Plugin (KGP) 1.9.0 を使用（Javaプロジェクトでも必須）
     id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
-    
-    // コアプラグインである 'maven-publish' は、ここでの宣言がエラーの原因となるため削除しました。
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// 【重要】allprojects {} および repositories {} ブロックは、
+// settings.gradle に移動したため、ここから削除します。
+// これにより build.gradle:12 で発生していたエラーを解消します。
 
 task clean(type: Delete) {
     delete rootProject.buildDir
