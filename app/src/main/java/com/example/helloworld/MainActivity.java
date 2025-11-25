@@ -8,7 +8,6 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -37,7 +36,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
-    private ImageButton cameraButton;
+    // 【修正点】XMLに合わせてImageButtonからButtonに変更
+    private Button cameraButton; 
     private ProgressBar loadingIndicator;
 
     // レシピ設定用のSpinner
@@ -62,11 +62,15 @@ public class MainActivity extends AppCompatActivity {
 
         // ヘルパークラスとAPIクライアントの初期化
         try {
+            // KeyStoreHelperの初期化はクラッシュの原因になり得るため、try-catch内で確実に処理する
             keyStoreHelper = new KeyStoreHelper(this);
         } catch (RuntimeException e) {
-            Log.e(TAG, "KeyStoreHelper initialization failed: " + e.getMessage());
-            Toast.makeText(this, "セキュリティシステム初期化エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e(TAG, "KeyStoreHelper initialization failed (potentially ANR risk): " + e.getMessage());
+            // エラーが発生した場合、keyStoreHelperはnullのままにしておく
+            keyStoreHelper = null; 
+            Toast.makeText(this, "セキュリティシステム初期化エラー。APIキー機能は利用できません。", Toast.LENGTH_LONG).show();
         }
+        
         preferencesHelper = new PreferencesHelper(this);
         apiClient = new GeminiApiClient();
 
@@ -79,7 +83,8 @@ public class MainActivity extends AppCompatActivity {
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
         loadingIndicator.setVisibility(View.GONE);
-        cameraButton = findViewById(R.id.button_camera);
+        // 【修正点】Buttonとして取得
+        cameraButton = findViewById(R.id.button_camera); 
 
         // Spinnerの初期化
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
@@ -92,10 +97,11 @@ public class MainActivity extends AppCompatActivity {
 
         // イベントリスナーの設定
         settingsButton.setOnClickListener(v -> openSettings());
+        // レシピ生成ボタンクリックで、認証プロセスを開始
         generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
         cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
 
-        // 初期状態ではボタンを無効化
+        // 初期状態ではボタンを無効化 (checkAndLoadApiKeyで状態を決定)
         generateRecipeButton.setEnabled(false);
     }
 
@@ -103,37 +109,29 @@ public class MainActivity extends AppCompatActivity {
      * SpinnerにArrayAdapterを設定
      */
     private void loadSpinnerAdapters() {
+        // XMLで定義された配列リソースを使用
+        ArrayAdapter<CharSequence> adapterBase = ArrayAdapter.createFromResource(
+                this, 
+                R.array.difficulty_options, 
+                android.R.layout.simple_spinner_item);
+        adapterBase.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
         // 難易度
-        ArrayAdapter<CharSequence> difficultyAdapter = ArrayAdapter.createFromResource(
-                this,
-                R.array.difficulty_options,
-                android.R.layout.simple_spinner_item);
-        difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerDifficulty.setAdapter(difficultyAdapter);
-
-        // ジャンル
-        ArrayAdapter<CharSequence> genreAdapter = ArrayAdapter.createFromResource(
-                this,
-                R.array.genre_options,
-                android.R.layout.simple_spinner_item);
-        genreAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerGenre.setAdapter(genreAdapter);
-
+        spinnerDifficulty.setAdapter(adapterBase);
+        // ジャンル (同じアダプタベースを使用)
+        spinnerGenre.setAdapter(ArrayAdapter.createFromResource(this, R.array.genre_options, android.R.layout.simple_spinner_item));
         // 調理時間
-        ArrayAdapter<CharSequence> timeAdapter = ArrayAdapter.createFromResource(
-                this,
-                R.array.time_options,
-                android.R.layout.simple_spinner_item);
-        timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerTime.setAdapter(timeAdapter);
-
+        spinnerTime.setAdapter(ArrayAdapter.createFromResource(this, R.array.time_options, android.R.layout.simple_spinner_item));
         // 食事制限
-        ArrayAdapter<CharSequence> dietAdapter = ArrayAdapter.createFromResource(
-                this,
-                R.array.dietary_options,
-                android.R.layout.simple_spinner_item);
-        dietAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerDiet.setAdapter(dietAdapter);
+        spinnerDiet.setAdapter(ArrayAdapter.createFromResource(this, R.array.dietary_options, android.R.layout.simple_spinner_item));
+
+        // ドロップダウンビューリソースの設定 (すべてのSpinnerに適用)
+        for (Spinner spinner : new Spinner[]{spinnerDifficulty, spinnerGenre, spinnerTime, spinnerDiet}) {
+            ArrayAdapter<?> adapter = (ArrayAdapter<?>) spinner.getAdapter();
+            if (adapter != null) {
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            }
+        }
     }
 
     private void showFeatureNotImplemented() {
@@ -143,15 +141,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // 【重要修正】onResumeでBiometricPromptを自動表示するのをやめる。
+        // 代わりにキーの状態チェックのみを行い、UIを更新する。
         checkAndLoadApiKey();
     }
 
     /**
-     * APIキーの存在チェックとロード処理の開始
+     * APIキーの存在チェックとUI表示の更新。
+     * 認証プロセスは、ユーザーがレシピ生成ボタンを押したときにのみ開始されます。
      */
     private void checkAndLoadApiKey() {
         if (keyStoreHelper == null) {
-            recipeOutputText.setText("セキュリティシステムが初期化されていません。アプリを再起動するか、設定を確認してください。");
+            // 初期化に失敗している場合
+            recipeOutputText.setText("セキュリティシステムの初期化エラーが発生しています。APIキーの保存/利用はできません。");
             generateRecipeButton.setEnabled(false);
             return;
         }
@@ -163,10 +165,11 @@ public class MainActivity extends AppCompatActivity {
              // 既にキーがロードされ、認証済みの場合
              generateRecipeButton.setEnabled(true);
              recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。");
-        } else if (keyAliasExist && encryptedDataExist && !isBiometricPromptShowing) {
-             // キーデータが存在するが認証されていない場合 -> 認証プロセスへ
-             loadApiKey();
-        } else if (!keyAliasExist || !encryptedDataExist) {
+        } else if (keyAliasExist && encryptedDataExist) {
+             // キーデータが存在するが認証されていない場合 -> ユーザーアクションを待つ
+             generateRecipeButton.setEnabled(true); // ユーザーアクションで認証開始可能
+             recipeOutputText.setText("APIキーが保存されています。レシピ生成ボタンを押して生体認証を開始してください。");
+        } else {
              // キーエイリアスまたは暗号化データが存在しない場合 -> 設定画面へ誘導
              apiKey = null;
              generateRecipeButton.setEnabled(false);
@@ -178,27 +181,36 @@ public class MainActivity extends AppCompatActivity {
      * APIキーを安全なストレージからロードし、必要に応じて生体認証を要求する
      */
     private void loadApiKey() {
+        // BiometricPromptが既に表示されている場合は何もしない
+        if (isBiometricPromptShowing) return;
+
         isBiometricPromptShowing = true;
         generateRecipeButton.setEnabled(false);
+        recipeOutputText.setText("生体認証を待機しています...");
 
         try {
-            // 【修正点】復号化の前に、まず保存されたデータを取得してIVを取り出す
             EncryptedData encryptedData = preferencesHelper.getEncryptedData();
             if (encryptedData == null) {
-                throw new Exception("保存データが見つかりません");
+                // データが失われている場合
+                handleKeyInvalidated();
+                return;
             }
             
-            // 【修正点】IVを渡してCipherを初期化。これがないとエラーになります。
+            // IVを渡してCipherを初期化
             Cipher cipher = keyStoreHelper.getDecryptCipher(encryptedData.getIv());
             
             showBiometricPrompt(cipher, encryptedData);
 
-        } catch (Exception e) {
-            Log.e(TAG, "Error loading API Key components: " + e.getMessage());
-            // エラー時は設定画面へ戻さない（ループ防止）
-            Toast.makeText(this, "認証準備エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            generateRecipeButton.setEnabled(false);
+        } catch (KeyPermanentlyInvalidatedException e) {
+             // キー無効化時の処理
+            handleKeyInvalidated();
             isBiometricPromptShowing = false;
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading API Key components or Cipher: " + e.getMessage());
+            Toast.makeText(this, "認証準備エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            generateRecipeButton.setEnabled(true); 
+            isBiometricPromptShowing = false;
+            checkAndLoadApiKey();
         }
     }
 
@@ -217,23 +229,23 @@ public class MainActivity extends AppCompatActivity {
                     super.onAuthenticationSucceeded(result);
                     isBiometricPromptShowing = false;
                     try {
-                        // 認証済みのCipherを取得
                         Cipher authenticatedCipher = result.getCryptoObject().getCipher();
-                        // 復号化を実行
                         apiKey = keyStoreHelper.decryptData(encryptedData, authenticatedCipher);
 
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
                         Toast.makeText(MainActivity.this, "APIキーの認証に成功しました", Toast.LENGTH_SHORT).show();
-                        generateRecipeButton.setEnabled(true);
-                        recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。");
+                        
+                        // 認証成功後、レシピ生成を続行する
+                        continueRecipeGeneration();
+
                     } catch (KeyPermanentlyInvalidatedException e) {
-                        // キー無効化時の処理
                         handleKeyInvalidated();
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
                         Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。設定を確認してください。", Toast.LENGTH_LONG).show();
-                        generateRecipeButton.setEnabled(false);
                         apiKey = null;
+                        generateRecipeButton.setEnabled(true);
+                        checkAndLoadApiKey(); 
                     }
                 }
 
@@ -242,18 +254,19 @@ public class MainActivity extends AppCompatActivity {
                     super.onAuthenticationFailed();
                     isBiometricPromptShowing = false;
                     Toast.makeText(MainActivity.this, "認証失敗", Toast.LENGTH_SHORT).show();
-                    generateRecipeButton.setEnabled(false);
+                    generateRecipeButton.setEnabled(true);
+                    checkAndLoadApiKey(); 
                 }
 
                 @Override
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
                     isBiometricPromptShowing = false;
-                    // キャンセル以外の場合はエラー表示
                     if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON && errorCode != BiometricPrompt.ERROR_USER_CANCELED) {
                         Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
                     }
-                    generateRecipeButton.setEnabled(false);
+                    generateRecipeButton.setEnabled(true);
+                    checkAndLoadApiKey(); 
                 }
             });
 
@@ -264,17 +277,20 @@ public class MainActivity extends AppCompatActivity {
             .setAllowedAuthenticators(BiometricProperties.REQUIRED_AUTHENTICATORS)
             .build();
 
-        // BiometricPromptにCipherをCryptoObjectとして渡す
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
     }
     
     private void handleKeyInvalidated() {
-        Log.e(TAG, "Key permanently invalidated");
+        Log.e(TAG, "Key permanently invalidated or data corrupted.");
         Toast.makeText(getApplicationContext(), "セキュリティキーが無効化されました。設定画面からキーを再入力してください。", Toast.LENGTH_LONG).show();
-        keyStoreHelper.deleteKeyAlias();
+        // 鍵とデータをクリーンアップ
+        if (keyStoreHelper != null) {
+            keyStoreHelper.deleteKeyAlias();
+        }
         preferencesHelper.deleteEncryptedKey();
         apiKey = null;
-        // 自動的に設定画面には飛ばさない
+        // UIを更新して設定を促す
+        checkAndLoadApiKey();
     }
 
     private void openSettings() {
@@ -282,18 +298,38 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    // レシピ生成の開始点 (ここで認証が必要か判断する)
     private void startRecipeGeneration() {
+        // 1. キーがロードされていないが、キーデータが保存されている場合
+        if (apiKey == null && preferencesHelper.hasEncryptedKey()) {
+             loadApiKey(); // 生体認証を開始する
+             return;
+        } 
+        
+        // 2. キーデータがそもそも保存されていない場合 
         if (apiKey == null || apiKey.isEmpty()) {
-            Toast.makeText(this, "APIキーがロードされていません。生体認証が必要です。", Toast.LENGTH_LONG).show();
-            checkAndLoadApiKey();
-            return;
+             Toast.makeText(this, "APIキーが設定されていません。設定画面から設定してください。", Toast.LENGTH_LONG).show();
+             return;
         }
 
+        // 3. キーがロードされている場合、または認証が完了した場合にレシピ生成を続行する
+        continueRecipeGeneration();
+    }
+    
+    /**
+     * APIキーがロードされた後にレシピ生成を実行する
+     */
+    private void continueRecipeGeneration() {
+        // UIの状態をリセット
+        isBiometricPromptShowing = false;
+        
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
             Toast.makeText(this, "食材を入力してください。", Toast.LENGTH_SHORT).show();
             return;
         }
+        
+        // --- ここから既存のレシピ生成ロジック ---
 
         // 価格帯のバリデーションと制約文字列の構築
         String minPriceStr = minPriceInput.getText().toString().trim();
