@@ -26,6 +26,6 @@ buildscript {
 allprojects {
     repositories {
         google()
-        mavenCentral() // 最後の応答で 'mavenCenter' だったのを修正
+        mavenCentral()
     }
 }
