@@ -75,12 +75,13 @@ public class KeyStoreHelper {
      * @throws NoSuchAlgorithmException アルゴリズムが見つからない場合
      */
     private SecretKey getSecretKey() 
-            throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException {
+            throws KeyStoreException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyPermanentlyInvalidatedException { // 💡 修正: KeyPermanentlyInvalidatedExceptionを追加
         try {
             return (SecretKey) keyStore.getKey(KEY_ALIAS, null);
         } catch (KeyStoreException e) {
             // キーが無効化された可能性を検出
             if (e.getMessage() != null && e.getMessage().contains("Key user not authenticated")) {
+                // 修正されたシグネチャにより、このthrowがコンパイル可能に
                 throw new KeyPermanentlyInvalidatedException("Key permanently invalidated due to authentication change.", e);
             }
             throw e;
@@ -126,9 +127,17 @@ public class KeyStoreHelper {
             throws NoSuchAlgorithmException, NoSuchPaddingException, 
                    InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
                    UnrecoverableKeyException, KeyStoreException {
-        
-        SecretKey secretKey = getSecretKey();
-        
+        // 💡 getSecretKey()はKeyPermanentlyInvalidatedExceptionをスローするようになったため、
+        // ここでもそれを処理する必要があります。ここではRuntimeExceptionとしてラップします。
+        SecretKey secretKey;
+        try {
+            secretKey = getSecretKey();
+        } catch (KeyPermanentlyInvalidatedException e) {
+            // KeyPermanentlyInvalidatedExceptionはチェック例外ですが、
+            // encryptDataはBiometricPromptなしで呼ばれるため、ここではRuntime例外としてラップするのが適切です。
+            throw new RuntimeException("Key is permanently invalid (auth change). Must regenerate key.", e);
+        }
+
         // 暗号化用のCipherを設定し、鍵で初期化
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
@@ -150,18 +159,21 @@ public class KeyStoreHelper {
     public String decryptData(PreferencesHelper.EncryptedData encryptedData, Cipher authenticatedCipher) 
             throws InvalidAlgorithmParameterException, IllegalBlockSizeException, 
                    BadPaddingException, KeyPermanentlyInvalidatedException {
-        
+
         try {
             // 認証済みCipherを生体認証に使用されたGCMParameterSpecで初期化
             GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, encryptedData.getIv());
+            // 💡 修正: getSecretKey()がKeyPermanentlyInvalidatedExceptionをスローするようになったため、
+            // ここで呼び出し元にKeyPermanentlyInvalidatedExceptionをそのままスローするように変更します。
             authenticatedCipher.init(Cipher.DECRYPT_MODE, getSecretKey(), gcmParameterSpec);
-            
+
             byte[] decryptedBytes = authenticatedCipher.doFinal(encryptedData.getEncryptedBytes());
             return new String(decryptedBytes, StandardCharsets.UTF_8);
 
         } catch (InvalidKeyException | UnrecoverableKeyException | NoSuchAlgorithmException | KeyStoreException e) {
              // 鍵の無効化を適切に処理
             if (e.getMessage() != null && e.getMessage().contains("Key user not authenticated")) {
+                // KeyPermanentlyInvalidatedExceptionをスローし、メソッドシグネチャに宣言済み
                 throw new KeyPermanentlyInvalidatedException("Key permanently invalidated due to authentication change.", e);
             }
             Log.e(TAG, "Decryption error (Key issue): " + e.getMessage());
@@ -177,7 +189,17 @@ public class KeyStoreHelper {
      */
     public Cipher getDecryptCipher() throws Exception {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        SecretKey secretKey = getSecretKey();
+        // 💡 修正: getSecretKey()がKeyPermanentlyInvalidatedExceptionをスローするようになったため、
+        // ここでそれを処理するように修正します。
+        SecretKey secretKey;
+        try {
+            secretKey = getSecretKey();
+        } catch (KeyPermanentlyInvalidatedException e) {
+            // この例外は呼び出し元 (MainActivityなど) に伝播させるべきなので、
+            // throws句に追加するか、ここでは単にExceptionとしてラップします。
+            // 既存のthrows Exceptionを利用するため、ここではそのまま伝播させます。
+            throw e; 
+        }
 
         // 復号化モードで鍵のみを使って初期化（IVは認証後に設定される）
         // 認証後にKeyStoreHelper.decryptDataでGCMParameterSpecを設定して最終的な復号化を行う
