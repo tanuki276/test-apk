@@ -1,18 +1,20 @@
 plugins {
     id 'com.android.application'
-    id 'maven-publish'
+    // 🚨 修正点: Kotlinプラグインの記述を削除しました。
 }
 
 android {
-    namespace 'com.example.liefantidia'
+    namespace 'com.example.liefantidia' 
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.liefantidia"  // ここも修正
+        applicationId "com.example.liefantidia"
         minSdk 24
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -21,9 +23,25 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    // Java 17を使用するよう設定を明記
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 🚨 修正点: kotlinOptionsを削除しました。
+
 }
 
 dependencies {
+    // 依存関係を最新の安定版に統一 (core-ktxではなくcoreを使用)
+    implementation 'androidx.core:core:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'com.google.android.material:material:1.10.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
