@@ -26,7 +26,8 @@ jobs:
 
       - name: 3. Android SDKパスの設定とツールのダウンロード
         run: |
-          # SDKルートとパス変数の設定
+          # 🚨 最終修正: デフォルトの ANDROID_HOME を上書きし、競合を解消
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           
           # コマンドラインツールのダウンロードと展開
@@ -39,7 +40,6 @@ jobs:
           # sdkmanagerのパスをPATHに登録（次のステップで有効になる）
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
-      # 🚨 修正: 独立したステップで SDK コンポーネントをインストール
       - name: 4. SDKコンポーネントのインストールとライセンス承認
         run: |
           # PATHが読み込まれた状態で sdkmanager を実行
@@ -49,12 +49,12 @@ jobs:
       - name: 5. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      # 6. Gradleシステムキャッシュを強制削除 (安定化のため維持)
       - name: 6. Gradleシステムキャッシュを強制削除
         run: rm -rf ~/.gradle/caches
 
       - name: 7. リリースAPKのビルド (assembleRelease)
-        run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
+        # 🚨 JDK 17 のホームディレクトリを明示的に指定して実行（念のため）
+        run: JAVA_HOME=$JAVA_HOME ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
       - name: 8. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
