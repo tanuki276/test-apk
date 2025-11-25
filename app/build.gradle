@@ -1,4 +1,5 @@
-plugins { // Pを小文字に修正
+// Top-level plugins definition
+Plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
 }
@@ -17,10 +18,44 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // ------------------------------------------------------------------
+    // 💡 リリース署名設定ブロック (CIの環境変数から情報を取得し、署名を強制)
+    // ------------------------------------------------------------------
+    signingConfigs {
+        release {
+            // GitHub ActionsのYAMLから渡される環境変数を取得
+            def keystoreFile = System.getenv('SIGNING_KEY_FILE')
+            def keystorePass = System.getenv('KEYSTORE_PASSWORD')
+            def keyAlias = System.getenv('KEY_ALIAS')
+            def keyPass = System.getenv('KEY_PASSWORD')
+            
+            // 環境変数が存在する場合（=CI環境と判断）のみ署名設定を適用
+            if (keystoreFile != null && keystorePass != null && keyAlias != null && keyPass != null) {
+                // ファイルパスとパスワードを設定
+                storeFile file(keystoreFile)
+                storePassword keystorePass
+                keyAlias keyAlias
+                keyPassword keyPass
+                
+                // 署名スキーム V1/V2 を強制的に有効化し、古いAndroidバージョンと新しいAndroidバージョン両方に対応させる
+                v1SigningEnabled true
+                v2SigningEnabled true
+            } else {
+                // ローカルビルドや環境変数が設定されていない場合にコンソールに出力
+                println "WARNING: CI environment variables for release signing were not found. Building unsigned APK."
+            }
+        }
+    }
+    // ------------------------------------------------------------------
+
     buildTypes {
         release {
+            // Minify/難読化設定
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // 💡 署名設定をリリースビルドタイプに適用
+            signingConfig signingConfigs.release
         }
     }
 
