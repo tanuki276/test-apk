@@ -25,7 +25,7 @@
                 android:id="@+id/text_app_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="AIレシピメーカー"
+                android:text="@string/app_name"
                 android:textSize="28sp"
                 android:textStyle="bold"
                 android:textColor="#333333"
@@ -48,7 +48,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="利用可能な食材 (カンマ区切り)"
+            android:text="@string/label_ingredients"
             android:textStyle="bold"
             android:textColor="#555555"
             android:layout_marginBottom="4dp"/>
@@ -57,7 +57,7 @@
             android:id="@+id/edit_text_ingredients"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/ingredients_hint"
+            android:hint="@string/hint_ingredients"
             android:inputType="text"
             android:padding="12dp"
             android:background="@drawable/rounded_edittext_bg"
@@ -68,17 +68,18 @@
             android:id="@+id/button_camera"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/button_camera"
+            android:text="@string/button_camera_text"
             android:backgroundTint="#4CAF50"
             android:textColor="@android:color/white"
             android:padding="12dp"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="16dp"
+            android:contentDescription="@string/content_description_camera" />
 
         <!-- 2. Price Range Input (R.id.edit_text_min_price, R.id.edit_text_max_price) -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="希望の価格帯 (円)"
+            android:text="@string/label_price_range"
             android:textStyle="bold"
             android:textColor="#555555"
             android:layout_marginBottom="4dp"/>
@@ -94,7 +95,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="@string/min_price_hint"
+                android:hint="@string/hint_min_price"
                 android:inputType="number"
                 android:padding="12dp"
                 android:background="@drawable/rounded_edittext_bg"
@@ -113,7 +114,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="@string/max_price_hint"
+                android:hint="@string/hint_max_price"
                 android:inputType="number"
                 android:padding="12dp"
                 android:background="@drawable/rounded_edittext_bg"
@@ -146,7 +147,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/difficulty_array"
+                    android:entries="@array/difficulty_options"
                     android:padding="8dp"/>
             </LinearLayout>
 
@@ -169,7 +170,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/genre_array"
+                    android:entries="@array/genre_options"
                     android:padding="8dp"/>
             </LinearLayout>
         </LinearLayout>
@@ -200,7 +201,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/time_array"
+                    android:entries="@array/time_options"
                     android:padding="8dp"/>
             </LinearLayout>
 
@@ -223,7 +224,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/diet_array"
+                    android:entries="@array/dietary_options"
                     android:padding="8dp"/>
             </LinearLayout>
         </LinearLayout>
@@ -267,7 +268,7 @@
             android:layout_height="wrap_content"
             android:padding="16dp"
             android:background="@drawable/rounded_output_bg"
-            android:text="@string/recipe_output_placeholder"
+            android:text="@string/text_recipe_initial"
             android:textColor="#333333"
             android:textSize="14sp"
             android:minHeight="150dp"/>
