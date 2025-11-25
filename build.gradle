@@ -1,15 +1,33 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-// settings.gradle に移行されたため、repositories の定義は削除します。
-// buildscript ブロックも settings.gradle の pluginManagement に移行します。
-
-plugins {
-    // 依存関係として利用可能なプラグインを宣言
-    id 'com.android.application' version '8.2.2' apply false 
-    id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
+buildscript {
+    ext {
+        // Kotlinのバージョンを明示的に定義
+        kotlin_version = '1.9.0' 
+        
+        // Android Gradle Plugin (AGP) のバージョンを定義
+        agp_version = '8.2.2'
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // AGPを依存関係として定義
+        classpath "com.android.tools.build:gradle:$agp_version"
+        // Kotlinプラグインを依存関係として定義 (すべてのサブプロジェクトで利用可能にするため)
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
 }
 
-// ビルド結果をクリーンアップするためのタスク
-tasks.register('clean', Delete) {
+// すべてのプロジェクトが依存関係を解決できるようにリポジトリを定義
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
     delete rootProject.buildDir
 }
