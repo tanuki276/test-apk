@@ -1,2 +1,20 @@
+// プラグイン管理設定
+pluginManagement {
+    // 【重要】プラグインのダウンロード元リポジトリをここで指定します。
+    repositories {
+        gradlePluginPortal() // Gradleコアプラグイン用
+        google()             // Android Gradle Plugin (AGP) はここにある
+        mavenCentral()       // その他の一般的なプラグイン用
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS))
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// プロジェクトのモジュール構成
 rootProject.name = "test-apk"
-include ':app'
+include ':app''
