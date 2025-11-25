@@ -1,14 +1,10 @@
-name: APK Java ビルド (リリース)
+name: APK Java ビルド (最終安定化)
 
 on:
   release:
     types: [created]
-
-  # メインブランチへのコード変更時に自動実行
   push:
-    branches: [ main, master ] 
-
-  # 手動実行を許可
+    branches: [ main, master ]
   workflow_dispatch: 
 
 jobs:
@@ -16,13 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     # ----------------------------------------------------
-    # 🚨 最終修正: 環境変数の確実なセットアップ 🚨
-    # run:ブロックの外側で env: を使用し、子プロセスに確実に渡す
+    # 🚨 最終修正: グローバル env で ANDROID_HOME のみ設定 🚨
+    # PATH の結合は run: ブロック内で行う
     # ----------------------------------------------------
     env:
+      # ANDROID_HOME を設定し、GradleがSDKの場所を特定できるようにする
       ANDROID_HOME: ${{ github.workspace }}/.android-sdk
-      # Android SDK toolsのパスをPATHに追加
-      PATH: ${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:${{ env.PATH }}
+      # 注: PATH の設定は YAML の構文エラーを避けるため、run: ブロック内で実行する
 
     steps:
       - name: 1. リポジトリのチェックアウト
@@ -33,30 +29,31 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Android SDKの自動セットアップは無効（環境変数で手動設定するため）
           
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      # ----------------------------------------------------
-      # 🚨 強制リセットステップ 🚨
-      # ----------------------------------------------------
-      - name: 3.5. Gradleシステムキャッシュを強制削除
+      - name: 4. Gradleシステムキャッシュを強制削除
         run: rm -rf ~/.gradle/caches
 
       # ----------------------------------------------------
-      # 4. リリースAPKのビルド (assembleRelease)
+      # 5. リリースAPKのビルド (assembleRelease)
       # ----------------------------------------------------
-      - name: 4. リリースAPKのビルド (assembleRelease)
-        # 🟢 --no-daemon: デーモンによる破損セッション情報の保持を無効化
-        # 🟢 -Dgradle.parallel=false: タスクの並列実行を無効化
-        # 🟢 --stacktrace: ログを詳細化し、エラーの根本原因を特定
-        run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
+      - name: 5. リリースAPKのビルド (assembleRelease)
+        run: |
+          # シェル内で ANDROID SDK のパスを既存の PATH に追加
+          # これにより、Gradleが正しくAndroidコマンドを見つけられるようになる
+          export PATH="${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:$PATH"
+          
+          # Gradleの実行
+          # --no-daemon: デーモンによる破損セッション情報の保持を無効化
+          # -Dgradle.parallel=false: タスクの並列実行を無効化
+          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
 
       # ----------------------------------------------------
       # 成果物のアップロード
       # ----------------------------------------------------
-      - name: 5. リリースAPKの成果物をアップロード
+      - name: 6. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
