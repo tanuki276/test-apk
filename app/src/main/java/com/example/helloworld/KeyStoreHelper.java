@@ -35,14 +35,13 @@ public class KeyStoreHelper {
     private static final String TRANSFORMATION = ENCRYPTION_ALGORITHM + "/" + BLOCK_MODE + "/" + PADDING;
 
     // 認証が有効な時間（秒）。0秒は「常に認証が必要」。
-    // 3600秒 (1時間) に設定します。
-    private static final int AUTH_DURATION_SECONDS = 3600; 
+    private static final int AUTH_DURATION_SECONDS = 3600; // 1時間
 
     private final KeyStore keyStore;
-    private final Context context;
+    // contextは直接利用しないが、インスタンスを維持
 
     public KeyStoreHelper(Context context) {
-        this.context = context;
+        // KeyStoreの初期化は必須であり、失敗は許容しない
         try {
             keyStore = KeyStore.getInstance(ANDROID_KEY_STORE);
             keyStore.load(null);
@@ -80,6 +79,15 @@ public class KeyStoreHelper {
     public void generateNewKey() throws NoSuchAlgorithmException, NoSuchProviderException,
             InvalidAlgorithmParameterException {
 
+        // 既にキーが存在する場合は、削除してから生成すべき
+        try {
+            if (isKeyExist()) {
+                deleteKey();
+            }
+        } catch (KeyStoreException e) {
+            Log.w(TAG, "Could not delete existing key before regeneration.", e);
+        }
+
         KeyGenerator keyGenerator = KeyGenerator.getInstance(ENCRYPTION_ALGORITHM, ANDROID_KEY_STORE);
 
         keyGenerator.init(new KeyGenParameterSpec.Builder(
@@ -88,7 +96,7 @@ public class KeyStoreHelper {
                 .setBlockModes(BLOCK_MODE)
                 .setEncryptionPaddings(PADDING)
                 .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(AUTH_DURATION_SECONDS) 
+                .setUserAuthenticationValidityDurationSeconds(AUTH_DURATION_SECONDS)
                 .build());
 
         keyGenerator.generateKey();
@@ -99,22 +107,25 @@ public class KeyStoreHelper {
      * データを暗号化し、暗号化データとIVを返す
      */
     public EncryptedData encryptData(String dataToEncrypt) throws Exception {
+        // キー生成は外部で行うか、ここでチェックする
         if (!isKeyExist()) {
-            generateNewKey();
+            // KeyStoreHelperはキーの生成はSettingsActivityに任せるべきだが、
+            // 念のためここで例外をスロー
+            throw new KeyStoreException("Encryption key does not exist. Call generateNewKey() first.");
         }
 
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION); 
+        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         // 暗号化時にはIVが自動生成される
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey); 
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
 
         byte[] encryptedBytes = cipher.doFinal(dataToEncrypt.getBytes("UTF-8"));
         byte[] iv = cipher.getIV();
 
         String encryptedDataString = Base64.encodeToString(encryptedBytes, Base64.DEFAULT);
         String ivString = Base64.encodeToString(iv, Base64.DEFAULT);
-        
+
         if (ivString == null || ivString.isEmpty()) {
              throw new IllegalStateException("Cipher did not generate a valid Initialization Vector (IV).");
         }
@@ -126,14 +137,18 @@ public class KeyStoreHelper {
      * 復号化用に初期化されたCipherオブジェクトを取得する（IVなし）
      * これを生体認証プロンプトのCryptoObjectとして使用する。
      */
-    public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, 
+    public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException,
             InvalidKeyException, NoSuchProviderException, NoSuchPaddingException {
 
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+        if (secretKey == null) {
+            throw new UnrecoverableKeyException("Secret key is null. KeyStore might be locked or corrupt.");
+        }
 
         // BiometricPromptの認証開始のために、IVなしでCipherをDECRYPT_MODEで初期化
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        cipher.init(Cipher.DECRYPT_MODE, secretKey); 
+        // IVなしで初期化することで、認証キーの使用を許可する
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
 
         return cipher;
     }
@@ -147,12 +162,9 @@ public class KeyStoreHelper {
         byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
         byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
 
-        // ★修正点★: BiometricPromptで認証されたCipherオブジェクトを、
-        // 鍵とIVParameterSpecを使ってDECRYPT_MODEで再初期化する。
-        // これにより、IV required... のエラーを回避する。
-        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-        
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv)); 
+        // BiometricPrompt認証済みのCipherを、IVParameterSpecを使ってDECRYPT_MODEで再初期化
+        // 認証済みのCipherに対してIVを設定し、復号化を完了させる
+        cipher.init(Cipher.DECRYPT_MODE, cipher.getKey(), new IvParameterSpec(iv));
 
         byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
 
