@@ -1,183 +1,219 @@
 package com.example.liefantidia2;
 
-import android.content.Context;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
-import android.util.Base64;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.CertificateException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.HttpUrl;
 
-public class KeyStoreHelper {
+/**
+ * Gemini APIと通信し、レシピを生成するためのクライアントクラス。
+ * ネットワーク処理は非同期で実行する。
+ */
+public class GeminiApiClient {
 
-    private static final String TAG = "KeyStoreHelper";
-    private static final String KEY_ALIAS = "AIRecipeKey";
+    private static final String TAG = "GeminiApiClient";
+    // 2.5-flash-preview-09-2025 を使用
+    private static final String MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+    // API URLはモデル名とキーをQuery Parameterで渡す
+    private static final String API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    // 暗号化に使用する設定
-    private static final String ANDROID_KEY_STORE = "AndroidKeyStore";
-    private static final String ENCRYPTION_ALGORITHM = KeyProperties.KEY_ALGORITHM_AES;
-    private static final String BLOCK_MODE = KeyProperties.BLOCK_MODE_CBC;
-    private static final String PADDING = KeyProperties.ENCRYPTION_PADDING_PKCS7;
-    private static final String TRANSFORMATION = ENCRYPTION_ALGORITHM + "/" + BLOCK_MODE + "/" + PADDING;
+    private final ExecutorService executor;
+    private final Handler handler;
+    private final OkHttpClient client;
 
-    // 認証が有効な時間（秒）。0秒は「常に認証が必要」。
-    private static final int AUTH_DURATION_SECONDS = 3600; // 1時間
+    public GeminiApiClient() {
+        executor = Executors.newSingleThreadExecutor();
+        handler = new Handler(Looper.getMainLooper());
+        // タイムアウト設定などを必要に応じて追加可能
+        client = new OkHttpClient();
+    }
 
-    private final KeyStore keyStore;
-    // contextは直接利用しないが、インスタンスを維持
-
-    public KeyStoreHelper(Context context) {
-        // KeyStoreの初期化は必須であり、失敗は許容しない
-        try {
-            keyStore = KeyStore.getInstance(ANDROID_KEY_STORE);
-            keyStore.load(null);
-        } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
-            // 初期化に失敗した場合、RuntimeExceptionでアプリを停止させる
-            throw new RuntimeException("Failed to initialize KeyStore.", e);
-        }
+    public interface RecipeCallback {
+        // ストリーミングではないため、onNewChunkをonResultに変更（名前だけ）
+        void onResult(String result);
+        void onComplete();
+        void onFailure(String error);
     }
 
     /**
-     * Keystoreにキーが存在するか確認する
+     * ユーザーの設定に基づき、レシピ生成プロセスを開始する。
      */
-    public boolean isKeyExist() {
-        try {
-            return keyStore.containsAlias(KEY_ALIAS);
-        } catch (KeyStoreException e) {
-            Log.e(TAG, "Key existence check failed.", e);
-            return false;
-        }
-    }
+    public void generateRecipe(String apiKey, String ingredients, String difficulty, String genre, String allConstraints, RecipeCallback callback) {
 
-    /**
-     * キーを削除する
-     */
-    public void deleteKey() throws KeyStoreException {
-        if (keyStore.containsAlias(KEY_ALIAS)) {
-            keyStore.deleteEntry(KEY_ALIAS);
-            Log.i(TAG, "SecretKey deleted from Android Keystore.");
-        }
-    }
+        executor.execute(() -> {
+            Response response = null;
+            try {
+                // 1. プロンプト生成
+                String prompt = buildPrompt(ingredients, difficulty, genre, allConstraints);
 
-    /**
-     * 新しい生体認証必須のキーを生成する
-     */
-    public void generateNewKey() throws NoSuchAlgorithmException, NoSuchProviderException,
-            InvalidAlgorithmParameterException {
+                // 2. APIリクエストボディ (JSON) を構築
+                String jsonBody = buildJsonPayload(prompt);
 
-        // 既にキーが存在する場合は、削除してから生成すべき
-        try {
-            if (isKeyExist()) {
-                deleteKey();
+                // 3. APIリクエストの構築
+                // API URLは BASE_URL + MODEL_NAME + :generateContent?key=...
+                HttpUrl httpUrl = HttpUrl.parse(API_BASE_URL + MODEL_NAME + ":generateContent").newBuilder()
+                                        .addQueryParameter("key", apiKey)
+                                        .build();
+
+                RequestBody body = RequestBody.create(jsonBody, JSON);
+                Request request = new Request.Builder()
+                        .url(httpUrl)
+                        .post(body)
+                        .header("Content-Type", "application/json")
+                        .build();
+
+                // 4. APIリクエストの実行
+                response = client.newCall(request).execute();
+
+                if (!response.isSuccessful()) {
+                    String errorDetail = response.body() != null ? response.body().string() : "No body";
+                    throw new IOException("API呼び出しが失敗しました: " + response.code() + ", 詳細: " + errorDetail);
+                }
+
+                // 5. レスポンスのパースと結果の抽出
+                String responseBody = response.body().string();
+                String generatedText = parseResponse(responseBody);
+
+                // 6. UIスレッドで結果を通知
+                handler.post(() -> {
+                    callback.onResult(generatedText);
+                    callback.onComplete();
+                });
+
+            } catch (Exception e) {
+                String errorMessage = "API通信または処理エラー: " + e.getMessage();
+                handler.post(() -> callback.onFailure(errorMessage));
+                Log.e(TAG, errorMessage, e);
+            } finally {
+                if (response != null) {
+                    response.close();
+                }
             }
-        } catch (KeyStoreException e) {
-            Log.w(TAG, "Could not delete existing key before regeneration.", e);
-        }
-
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(ENCRYPTION_ALGORITHM, ANDROID_KEY_STORE);
-
-        keyGenerator.init(new KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(BLOCK_MODE)
-                .setEncryptionPaddings(PADDING)
-                .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(AUTH_DURATION_SECONDS)
-                .build());
-
-        keyGenerator.generateKey();
-        Log.i(TAG, "New SecretKey generated in Android Keystore.");
+        });
     }
 
     /**
-     * データを暗号化し、暗号化データとIVを返す
+     * ユーザー設定を統合したプロンプト文字列を生成する
      */
-    public EncryptedData encryptData(String dataToEncrypt) throws Exception {
-        // キー生成は外部で行うか、ここでチェックする
-        if (!isKeyExist()) {
-            // KeyStoreHelperはキーの生成はSettingsActivityに任せるべきだが、
-            // 念のためここで例外をスロー
-            throw new KeyStoreException("Encryption key does not exist. Call generateNewKey() first.");
+    private String buildPrompt(String ingredients, String difficulty, String genre, String allConstraints) {
+        String expertise = "";
+        String constraint = "";
+
+        // 難易度によるペルソナと制約の設定
+        if (difficulty.contains("初心者")) {
+            expertise = "料理初心者にも分かりやすい言葉で、失敗しない手順を提案するプロの料理人として振る舞ってください。";
+            constraint = "手順は短く区切り、難しい調理技術は使わないでください。";
+        } else if (difficulty.contains("上級者")) {
+            expertise = "創造的で挑戦的なレシピを提供するミシュランのシェフとして振る舞ってください。";
+            constraint = "プロの用語や高度な調理法を含めてください。";
+        } else {
+             expertise = "バランスの取れた中級者向けレシピを提案する家庭料理研究家として振る舞ってください。";
+             constraint = "";
         }
 
-        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+        // プロンプトの統合
+        String prompt = "あなたはAIレシピ提案アシスタントです。"
+                + expertise
+                + "\n\n以下の条件と食材に基づいて、調理手順を含むレシピを一つ提案してください。"
+                + "\n\n---"
+                + "\n[入力食材]: " + ingredients
+                + "\n[難易度]: " + difficulty
+                + "\n[ジャンル]: " + genre
+                + "\n[追加制約]: " + allConstraints
+                + "\n[その他技術制約]: " + constraint
+                + "\n\n提案は、レシピ名、材料（分量付き）、調理手順の順に、Markdown形式で出力してください。"
+                + "\n---";
 
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        // 暗号化時にはIVが自動生成される
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-
-        byte[] encryptedBytes = cipher.doFinal(dataToEncrypt.getBytes("UTF-8"));
-        byte[] iv = cipher.getIV();
-
-        String encryptedDataString = Base64.encodeToString(encryptedBytes, Base64.DEFAULT);
-        String ivString = Base64.encodeToString(iv, Base64.DEFAULT);
-
-        if (ivString == null || ivString.isEmpty()) {
-             throw new IllegalStateException("Cipher did not generate a valid Initialization Vector (IV).");
-        }
-
-        return new EncryptedData(encryptedDataString, ivString);
+        return prompt;
     }
 
     /**
-     * 復号化用に初期化されたCipherオブジェクトを取得する（IVなし）
-     * これを生体認証プロンプトのCryptoObjectとして使用する。
+     * Gemini APIに送信するためのJSONペイロードを構築する
+     * Google Search Groundingを有効化する設定を追加
      */
-    public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException,
-            InvalidKeyException, NoSuchProviderException, NoSuchPaddingException {
+    private String buildJsonPayload(String prompt) {
+        try {
+            JSONObject contentPart = new JSONObject();
+            // JSON文字列内の二重引用符をエスケープ
+            String safePrompt = prompt.replace("\"", "\\\"");
+            contentPart.put("text", safePrompt);
 
-        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-        if (secretKey == null) {
-            throw new UnrecoverableKeyException("Secret key is null. KeyStore might be locked or corrupt.");
+            JSONArray partsArray = new JSONArray();
+            partsArray.put(contentPart);
+
+            JSONObject content = new JSONObject();
+            content.put("parts", partsArray);
+            content.put("role", "user");
+
+            JSONArray contentsArray = new JSONArray();
+            contentsArray.put(content);
+
+            // Google Search Grounding Tool
+            JSONObject tool = new JSONObject();
+            tool.put("google_search", new JSONObject());
+
+            JSONArray toolsArray = new JSONArray();
+            toolsArray.put(tool);
+
+            // System Instruction
+            JSONObject systemInstructionPart = new JSONObject();
+            systemInstructionPart.put("text", "あなたはプロの料理研究家です。日本のユーザーに最適なレシピを提案します。");
+
+            JSONObject systemInstruction = new JSONObject();
+            systemInstruction.put("parts", new JSONArray().put(systemInstructionPart));
+
+            JSONObject payload = new JSONObject();
+            payload.put("contents", contentsArray);
+            payload.put("temperature", 0.7);
+            payload.put("tools", toolsArray); // Grounding Toolを追加
+            payload.put("systemInstruction", systemInstruction);
+
+            return payload.toString();
+        } catch (Exception e) {
+            Log.e(TAG, "JSONペイロードの構築に失敗", e);
+            return "{}";
         }
-
-        // BiometricPromptの認証開始のために、IVなしでCipherをDECRYPT_MODEで初期化
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        // IVなしで初期化することで、認証キーの使用を許可する
-        cipher.init(Cipher.DECRYPT_MODE, secretKey);
-
-        return cipher;
     }
 
     /**
-     * 暗号化されたデータとIVを使って復号化を実行する
-     * @param cipher BiometricPrompt認証後に提供されたCipherオブジェクト
+     * APIレスポンス (JSON) から生成されたテキストを抽出する
      */
-    public String decryptData(String encryptedDataString, String ivString, Cipher cipher) throws Exception {
+    private String parseResponse(String responseBody) {
+        try {
+            JSONObject json = new JSONObject(responseBody);
 
-        byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
-        byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
+            JSONArray candidates = json.getJSONArray("candidates");
+            if (candidates.length() > 0) {
+                JSONObject candidate = candidates.getJSONObject(0);
+                JSONObject content = candidate.getJSONObject("content");
+                JSONArray parts = content.getJSONArray("parts");
+                if (parts.length() > 0) {
+                    String rawText = parts.getJSONObject(0).getString("text");
+                    // エスケープシーケンスのデコード
+                    return rawText.replace("\\n", "\n")
+                                  .replace("\\\"", "\"")
+                                  .replace("\\\\", "\\");
+                }
+            }
+            return "レシピ生成に失敗しました。APIが応答をブロックした可能性があります。\n" + responseBody;
 
-        // BiometricPrompt認証済みのCipherを、IVParameterSpecを使ってDECRYPT_MODEで再初期化
-        // 認証済みのCipherに対してIVを設定し、復号化を完了させる
-        cipher.init(Cipher.DECRYPT_MODE, cipher.getKey(), new IvParameterSpec(iv));
-
-        byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
-
-        return new String(decryptedBytes, "UTF-8");
-    }
-
-    public static class EncryptedData {
-        public final String encryptedData;
-        public final String iv;
-
-        public EncryptedData(String encryptedData, String iv) {
-            this.encryptedData = encryptedData;
-            this.iv = iv;
+        } catch (Exception e) {
+            Log.e(TAG, "APIレスポンスのパースに失敗: " + responseBody, e);
+            return "エラー: APIからの応答を読み取れませんでした。\n" + responseBody;
         }
     }
 }
