@@ -1,26 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 必須: API通信のための権限 -->
     <uses-permission android:name="android.permission.INTERNET" />
-    
-    <!-- 必須: 生体認証（指紋、顔認証）のための権限 -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-
-    <!-- カメラ機能（将来の画像入力用） -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
 
     <application
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AIRecipeApp"
-        android:usesCleartextTraffic="false">
-
+        android:theme="@style/Theme.Liefantidia"
+        tools:targetApi="31">
+        
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -29,12 +24,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"/> <!-- 設定画面に戻るボタンを追加 -->
-
     </application>
-
 </manifest>
