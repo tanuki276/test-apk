@@ -137,10 +137,13 @@ public class KeyStoreHelper {
         byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
         byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
 
-        // BiometricPromptから渡されたCipherはすでに初期化されているため、
-        // IVを設定して再度初期化する必要がある。
-        // NOTE: cipher.init() は、BiometricPromptから渡されたCipherのキーを再利用する。
-        cipher.init(Cipher.DECRYPT_MODE, cipher.getKey(), new IvParameterSpec(iv)); 
+        // 【★修正箇所】: cipher.getKey() は存在しないため、Keystoreから鍵を再度取得するように変更
+        // 認証成功後のCipherオブジェクトは、内部的に鍵を持っているため、
+        // 実際には鍵を再取得しても問題なく動作する（認証済みのCipherが鍵へのアクセスを許可する）。
+        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+
+        // IVを設定してCipherを初期化し直し、復号を実行
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv)); 
         byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
 
         return new String(decryptedBytes, "UTF-8");
