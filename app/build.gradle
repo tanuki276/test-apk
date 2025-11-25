@@ -1,6 +1,6 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android' // JavaプロジェクトでもこのIDは必要
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -25,12 +25,10 @@ android {
     }
 
     compileOptions {
-        // Java 17互換性
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
     
-    // Kotlinコンパイルオプション（Javaコードのコンパイルには影響なし）
     kotlinOptions {
         jvmTarget = '17'
     }
@@ -41,16 +39,17 @@ dependencies {
     implementation 'androidx.core:core:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.10.0'
+    
+    // ConstraintLayout の依存関係を、最新かつ互換性のあるバージョンに更新し、不整合を解消
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // 必須: BiometricPrompt (キー認証に使用)
+    // BiometricPrompt
     implementation 'androidx.biometric:biometric:1.1.0' 
 
-    // 必須: OkHttp (API通信に使用)
+    // OkHttp
     implementation 'com.squareup.okhttp3:okhttp:4.11.0' 
     
-    // Kotlin Standard Library (バージョンはKGPに任せる)
-    // 【修正点】ext.kotlin_version への参照を削除
+    // Kotlin Standard Library 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8" 
     
     testImplementation 'junit:junit:4.13.2'
