@@ -166,6 +166,7 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
+            // エラーが発生した場合は、ユーザーに設定画面へ誘導
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
             openSettings();
         }
@@ -188,7 +189,10 @@ public class MainActivity extends AppCompatActivity {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
                         String ivString = preferencesHelper.getIv(); 
 
-                        apiKey = keyStoreHelper.decryptData(encryptedKey, ivString, result.getCryptoObject().getCipher());
+                        // 【★修正箇所】: decryptDataからCipher引数を削除
+                        // 認証が成功したことでキーの利用が可能になったため、
+                        // ここで暗号化データとIVを使って復号化を実行します。
+                        apiKey = keyStoreHelper.decryptData(encryptedKey, ivString);
 
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
                         Toast.makeText(MainActivity.this, "APIキーの認証に成功しました", Toast.LENGTH_SHORT).show();
