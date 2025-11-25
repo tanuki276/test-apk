@@ -16,24 +16,23 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 🚨 修正ステップ 1: Java 17 のセットアップを公式アクションで分離
+      # 2. Java 17 のセットアップ (actions/setup-java@v4 は維持)
       - name: 2. Java 17 のセットアップ
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle' # Gradleキャッシュを有効化
+          cache: 'gradle'
 
-      # 🚨 修正ステップ 2: Android SDKのセットアップをv4の正しいパラメーターで実行
-      - name: 3. Android SDK セットアップ (v4対応)
-        uses: android-actions/setup-android@v3
+      # 🚨 修正ステップ: Android SDKのセットアップを v3 の正しいパラメーター形式に戻す
+      - name: 3. Android SDK セットアップ (v3対応)
+        uses: android-actions/setup-android@v3 # バージョンを v3 に戻す
         with:
-          # v4では古い 'android-sdk-version' の代わりに 'packages' を使用します。
-          packages: |
-            'platform-tools'
-            'platforms;android-34' # compileSdk 34に必要なパッケージ
-            'build-tools;34.0.0'
-
+          # v3 で有効なパラメーターを使用
+          android-sdk-version: '34' 
+          # v3 では個別のパッケージインストールには 'components' を使用
+          components: [ 'platform-tools', 'platforms;android-34', 'build-tools;34.0.0' ]
+          
       - name: 4. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
