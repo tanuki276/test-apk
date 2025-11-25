@@ -1,22 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">AI レシピ提案</string>
+    <string name="app_name">liefantidia2</string>
 
+    <!-- MainActivity UI要素 -->
     <string name="label_ingredients">利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）</string>
     <string name="hint_ingredients">食材をコンマ区切りで入力</string>
     <string name="content_description_camera">食材の画像を撮影</string>
     <string name="label_settings_title">レシピ設定（難易度、ジャンル、時間、制約）</string>
-    <string name="button_generate_recipe">AIレシピを提案する</string>
-    <string name="text_recipe_initial">ここにAIが生成したレシピがストリーミングで表示されます。</string>
+    <string name="label_price_range">予算（価格帯）設定</string>
+    <string name="hint_min_price">最低価格 (円)</string>
+    <string name="hint_max_price">最高価格 (円)</string>
+    <string name="button_generate_recipe">レシピを見る</string>
+    <string name="text_recipe_initial">ここに生成されたレシピがストリーミングで表示されます。</string>
     <string name="button_settings">設定</string>
 
+    <!-- SettingsActivity UI要素 -->
     <string name="settings_title">APIキー設定</string>
     <string name="settings_description">Gemini/GPT APIキーを入力してください。キーは生体認証で暗号化され、安全に端末に保存されます。</string>
     <string name="settings_hint_api_key">ここにAPIキー（sk-xxxx...）を入力</string>
     <string name="button_save_key">APIキーを保存して認証する</string>
     <string name="security_note">※保存後、キーの利用には端末の指紋認証またはPINが必要になります。</string>
+    <string name="key_saved_placeholder">キーは安全に保存されています</string> <!-- 設定済みキー表示用 -->
 
+    <!-- トーストメッセージ -->
     <string name="toast_set_api_key">APIキーを設定してください。</string>
     <string name="toast_input_ingredients">食材を入力してください。</string>
-    
+    <string name="error_invalid_price_range">最低価格が最高価格を超えています。</string>
+    <string name="error_invalid_price_format">価格帯には有効な数値を入力してください。</string>
+
 </resources>
