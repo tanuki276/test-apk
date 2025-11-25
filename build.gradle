@@ -1,5 +1,6 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// settings.gradle にプラグインバージョンが移行できないため、buildscriptブロックは残します。
 buildscript {
     ext {
         // Kotlinのバージョンを明示的に定義
@@ -15,18 +16,12 @@ buildscript {
     dependencies {
         // AGPを依存関係として定義
         classpath "com.android.tools.build:gradle:$agp_version"
-        // Kotlinプラグインを依存関係として定義 (すべてのサブプロジェクトで利用可能にするため)
+        // Kotlinプラグインを依存関係として定義
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-// すべてのプロジェクトが依存関係を解決できるようにリポジトリを定義
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// 🚨 修正: 以前クラッシュを引き起こしていた allprojects { repositories { ... } } ブロックを削除しました。
 
 task clean(type: Delete) {
     delete rootProject.buildDir
