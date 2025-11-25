@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    
+
+    <!-- 必須: API通信のための権限 -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- 必須: 生体認証（指紋、顔認証）のための権限 -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- カメラ機能（将来の画像入力用） -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
 
@@ -28,7 +32,8 @@
 
         <activity
             android:name=".SettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:parentActivityName=".MainActivity"/> <!-- 設定画面に戻るボタンを追加 -->
 
     </application>
 
