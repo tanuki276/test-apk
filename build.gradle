@@ -1,16 +1,15 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
-plugins {
-    // Android Gradle Plugin (AGP) 8.2.2 を使用
-    id 'com.android.application' version '8.2.2' apply false 
 
-    // Kotlin Gradle Plugin (KGP) 1.9.0 を使用（Javaプロジェクトでも必須）
+// settings.gradle に移行されたため、repositories の定義は削除します。
+// buildscript ブロックも settings.gradle の pluginManagement に移行します。
+
+plugins {
+    // 依存関係として利用可能なプラグインを宣言
+    id 'com.android.application' version '8.2.2' apply false 
     id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
 }
 
-// 【重要】allprojects {} および repositories {} ブロックは、
-// settings.gradle に移動したため、ここから削除します。
-// これにより build.gradle:12 で発生していたエラーを解消します。
-
-task clean(type: Delete) {
+// ビルド結果をクリーンアップするためのタスク
+tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
