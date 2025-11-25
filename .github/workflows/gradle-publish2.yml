@@ -18,7 +18,7 @@ jobs:
 
       - name: 2. Android SDKとJava環境のセットアップ
         # 🚨 修正: アクションのバージョンを最新の安定版 @v4 に変更
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
         with:
           java-version: '17'
           android-sdk-version: '34'
