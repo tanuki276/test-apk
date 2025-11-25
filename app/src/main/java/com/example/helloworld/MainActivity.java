@@ -28,8 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     // UIコンポーネント (R.id.〇〇はactivity_main.xmlで定義されています)
     private EditText ingredientInput;
-    private EditText minPriceInput; // ★新規追加★
-    private EditText maxPriceInput; // ★新規追加★
+    private EditText minPriceInput;
+    private EditText maxPriceInput;
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); 
+        setContentView(R.layout.activity_main);
 
         // ヘルパークラスとAPIクライアントの初期化
         keyStoreHelper = new KeyStoreHelper(this);
@@ -62,8 +62,8 @@ public class MainActivity extends AppCompatActivity {
 
         // UIコンポーネントの初期化
         ingredientInput = findViewById(R.id.edit_text_ingredients);
-        minPriceInput = findViewById(R.id.edit_text_min_price); // ★新規追加★
-        maxPriceInput = findViewById(R.id.edit_text_max_price); // ★新規追加★
+        minPriceInput = findViewById(R.id.edit_text_min_price);
+        maxPriceInput = findViewById(R.id.edit_text_max_price);
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
@@ -85,10 +85,8 @@ public class MainActivity extends AppCompatActivity {
         generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
         cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
 
-        // アプリ起動時にキーを読み出す処理を開始
-        // generateRecipeButtonを初期状態で無効化し、認証成功後に有効にする
+        // アプリ起動時にキーをロード (onCreateでは実行せず、onResumeで実行する方が適切)
         generateRecipeButton.setEnabled(false);
-        loadApiKey();
     }
 
     /**
@@ -97,32 +95,32 @@ public class MainActivity extends AppCompatActivity {
     private void loadSpinnerAdapters() {
         // 難易度
         ArrayAdapter<CharSequence> difficultyAdapter = ArrayAdapter.createFromResource(
-                this, 
-                R.array.difficulty_options, 
+                this,
+                R.array.difficulty_options,
                 android.R.layout.simple_spinner_item);
         difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerDifficulty.setAdapter(difficultyAdapter);
 
         // ジャンル
         ArrayAdapter<CharSequence> genreAdapter = ArrayAdapter.createFromResource(
-                this, 
-                R.array.genre_options, 
+                this,
+                R.array.genre_options,
                 android.R.layout.simple_spinner_item);
         genreAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerGenre.setAdapter(genreAdapter);
 
         // 調理時間
         ArrayAdapter<CharSequence> timeAdapter = ArrayAdapter.createFromResource(
-                this, 
-                R.array.time_options, 
+                this,
+                R.array.time_options,
                 android.R.layout.simple_spinner_item);
         timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerTime.setAdapter(timeAdapter);
 
         // 食事制限
         ArrayAdapter<CharSequence> dietAdapter = ArrayAdapter.createFromResource(
-                this, 
-                R.array.dietary_options, 
+                this,
+                R.array.dietary_options,
                 android.R.layout.simple_spinner_item);
         dietAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerDiet.setAdapter(dietAdapter);
@@ -138,22 +136,23 @@ public class MainActivity extends AppCompatActivity {
 
 
     /**
-     * SettingsActivityから戻ってきた時にキーの再ロードを試みる
+     * Activityがフォアグラウンドに戻ってきた時にキーの再ロードを試みる
+     * これにより、SettingsActivityから戻った時や、アプリが再開した時に認証チェックが入る
      */
     @Override
     protected void onResume() {
         super.onResume();
-        // 既にロードされていない、またはキーがクリアされている場合に再認証を試みる
+        // 1. キーがまだロードされていない、またはキーがクリアされている
         if (apiKey == null && preferencesHelper.hasEncryptedKey()) {
+             // キーデータが存在するが認証されていない場合
              loadApiKey();
-        } else if (preferencesHelper.hasEncryptedKey() && apiKey != null) {
-             // キーが保存されており、既にロードされている場合（設定画面から戻ったが、キーはそのまま）
-             generateRecipeButton.setEnabled(true);
-        } else if (!preferencesHelper.hasEncryptedKey()) {
-             // キーデータがPreferencesから消えている場合（設定画面でキーがクリアされたなど）
-             apiKey = null;
+        } else if (apiKey == null && !preferencesHelper.hasEncryptedKey()) {
+             // キーデータが存在しない場合
              generateRecipeButton.setEnabled(false);
-             Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
+             recipeOutputText.setText("APIキーが設定されていません。設定画面から設定してください。");
+        } else if (apiKey != null) {
+             // 既にキーがロードされ、認証済みの場合
+             generateRecipeButton.setEnabled(true);
         }
     }
 
@@ -162,12 +161,15 @@ public class MainActivity extends AppCompatActivity {
      * APIキーを安全なストレージからロードし、必要に応じて生体認証を要求する
      */
     private void loadApiKey() {
+        // 認証中に複数回loadApiKeyが呼ばれるのを防ぐために、まずボタンを無効化
+        generateRecipeButton.setEnabled(false);
+
         try {
             // 1. キーが存在しない場合は設定画面へ誘導
             if (!keyStoreHelper.isKeyExist() || !preferencesHelper.hasEncryptedKey()) {
                 Log.i(TAG, "API Key not configured or missing data. Opening settings.");
                 Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
-                openSettings(); 
+                openSettings();
                 return;
             }
 
@@ -177,8 +179,6 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
-            // ループ対策として、エラーが発生した場合に設定画面へ誘導する処理を削除し、
-            // 認証ボタンを無効化するのみにする。
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
             generateRecipeButton.setEnabled(false);
         }
@@ -199,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                     super.onAuthenticationSucceeded(result);
                     try {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
-                        String ivString = preferencesHelper.getIv(); 
+                        String ivString = preferencesHelper.getIv();
 
                         // 認証済みのCipherをdecryptDataに渡す
                         Cipher authenticatedCipher = result.getCryptoObject().getCipher();
@@ -210,8 +210,8 @@ public class MainActivity extends AppCompatActivity {
                         generateRecipeButton.setEnabled(true);
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
-                        // 復号化失敗時: キーはクリアせず、無効化してユーザーに再認証を促す
-                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。原因: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        // 復号化失敗時
+                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。再認証してください。", Toast.LENGTH_LONG).show();
                         generateRecipeButton.setEnabled(false);
                         apiKey = null;
                     }
@@ -228,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
                     Log.w(TAG, "Authentication error: " + errString);
-                    // 認証エラー時: ループ対策として設定画面に戻る処理は行わない
                     Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
                     generateRecipeButton.setEnabled(false);
                 }
@@ -237,11 +236,10 @@ public class MainActivity extends AppCompatActivity {
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
             .setTitle("セキュリティ認証")
             .setSubtitle("APIキーを使用するため、指紋またはPINが必要です。")
-            .setNegativeButtonText("キャンセル") 
+            .setNegativeButtonText("キャンセル")
             .build();
 
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
-        generateRecipeButton.setEnabled(false);
     }
 
 
@@ -258,38 +256,44 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startRecipeGeneration() {
         if (apiKey == null || apiKey.isEmpty()) {
-            Toast.makeText(this, "APIキーがロードされていません。認証が必要です。", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "APIキーがロードされていません。生体認証が必要です。", Toast.LENGTH_LONG).show();
             // 再度認証プロセスを開始
             loadApiKey();
             return;
         }
-        
+
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
             Toast.makeText(this, "食材を入力してください。", Toast.LENGTH_SHORT).show();
             return;
         }
-        
-        // ★新規追加★: 価格帯の取得
-        String minPrice = minPriceInput.getText().toString().trim();
-        String maxPrice = maxPriceInput.getText().toString().trim();
+
+        // 価格帯のバリデーションと制約文字列の構築
+        String minPriceStr = minPriceInput.getText().toString().trim();
+        String maxPriceStr = maxPriceInput.getText().toString().trim();
         String priceConstraint = "";
-        
-        if (!minPrice.isEmpty() || !maxPrice.isEmpty()) {
-            // 入力が不正な場合のバリデーション
+
+        if (!minPriceStr.isEmpty() || !maxPriceStr.isEmpty()) {
             try {
-                int min = minPrice.isEmpty() ? 0 : Integer.parseInt(minPrice);
-                // maxPriceが空の場合は「制限なし」として扱う
-                if (maxPrice.isEmpty()) {
-                     priceConstraint = String.format("価格帯: %d円〜制限なし", min);
+                int min = minPriceStr.isEmpty() ? 0 : Integer.parseInt(minPriceStr);
+                int max;
+
+                if (maxPriceStr.isEmpty()) {
+                     // 最高価格が空の場合は、INTの最大値として扱う（プロンプトでは「制限なし」）
+                     max = Integer.MAX_VALUE;
                 } else {
-                     int max = Integer.parseInt(maxPrice);
-                     if (min > max) {
-                         Toast.makeText(this, "最低価格が最高価格を超えています。", Toast.LENGTH_LONG).show();
-                         return; // 実行を中断
-                     }
-                     priceConstraint = String.format("価格帯: %d円〜%d円", min, max);
+                     max = Integer.parseInt(maxPriceStr);
                 }
+
+                if (min > max) {
+                    Toast.makeText(this, "最低価格が最高価格を超えています。", Toast.LENGTH_LONG).show();
+                    return; // 実行を中断
+                }
+
+                // プロンプト用の価格制約文字列を構築
+                String maxDisplay = (max == Integer.MAX_VALUE) ? "制限なし" : max + "円";
+                priceConstraint = String.format("価格帯: %d円〜%s", min, maxDisplay);
+
             } catch (NumberFormatException e) {
                  Toast.makeText(this, "価格帯には有効な数値を入力してください。", Toast.LENGTH_LONG).show();
                  return; // 実行を中断
@@ -305,10 +309,9 @@ public class MainActivity extends AppCompatActivity {
 
         // すべての制約を結合
         StringBuilder allConstraintsBuilder = new StringBuilder();
-        allConstraintsBuilder.append(String.format("難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s", 
+        allConstraintsBuilder.append(String.format("難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s",
             difficulty, genre, timeConstraint, dietConstraint));
-            
-        // ★新規追加★: 価格制約を追加
+
         if (!priceConstraint.isEmpty()) {
              allConstraintsBuilder.append(", ").append(priceConstraint);
         }
@@ -321,13 +324,13 @@ public class MainActivity extends AppCompatActivity {
         generateRecipeButton.setEnabled(false);
         loadingIndicator.setVisibility(View.VISIBLE);
 
-        // APIクライアントの呼び出し 
+        // APIクライアントの呼び出し
         apiClient.generateRecipe(apiKey, ingredients, difficulty, genre, allConstraints, new GeminiApiClient.RecipeCallback() {
 
             @Override
-            public void onNewChunk(String chunk) {
+            public void onResult(String result) {
                 // UIスレッドで実行される
-                recipeOutputText.setText(chunk);
+                recipeOutputText.setText(result);
             }
 
             @Override
