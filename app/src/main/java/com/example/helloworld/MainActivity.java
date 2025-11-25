@@ -32,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
     private Button generateRecipeButton;
     private Button settingsButton;
     private ImageButton cameraButton;
-    // IDは元のR.id.progress_bar_loadingのまま保守
     private ProgressBar loadingIndicator;
 
     // レシピ設定用のSpinner
@@ -60,18 +59,15 @@ public class MainActivity extends AppCompatActivity {
         apiClient = new GeminiApiClient();
 
         // UIコンポーネントの初期化
-        // IDは元のまま保守
         ingredientInput = findViewById(R.id.edit_text_ingredients);
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
-        // IDは元のまま保守
         loadingIndicator = findViewById(R.id.progress_bar_loading);
         loadingIndicator.setVisibility(View.GONE);
         cameraButton = findViewById(R.id.button_camera);
 
         // Spinnerの初期化
-        // IDは元のまま保守
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
         spinnerGenre = findViewById(R.id.spinner_genre);
         spinnerTime = findViewById(R.id.spinner_time);
@@ -91,10 +87,9 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * SpinnerにArrayAdapterを設定し、res/values/arrays.xmlの項目をロードする
-     * ArrayAdapterのレイアウトには標準の`simple_spinner_item`と`simple_spinner_dropdown_item`を使用
      */
     private void loadSpinnerAdapters() {
-        // 難易度 - リソース名を R.array.difficulty_options に修正
+        // 難易度
         ArrayAdapter<CharSequence> difficultyAdapter = ArrayAdapter.createFromResource(
                 this, 
                 R.array.difficulty_options, 
@@ -102,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
         difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerDifficulty.setAdapter(difficultyAdapter);
 
-        // ジャンル - リソース名を R.array.genre_options に修正
+        // ジャンル
         ArrayAdapter<CharSequence> genreAdapter = ArrayAdapter.createFromResource(
                 this, 
                 R.array.genre_options, 
@@ -110,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
         genreAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerGenre.setAdapter(genreAdapter);
 
-        // 調理時間 - リソース名を R.array.time_options に修正
+        // 調理時間
         ArrayAdapter<CharSequence> timeAdapter = ArrayAdapter.createFromResource(
                 this, 
                 R.array.time_options, 
@@ -118,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
         timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerTime.setAdapter(timeAdapter);
 
-        // 食事制限 - リソース名を R.array.dietary_options に修正
+        // 食事制限
         ArrayAdapter<CharSequence> dietAdapter = ArrayAdapter.createFromResource(
                 this, 
                 R.array.dietary_options, 
@@ -154,6 +149,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadApiKey() {
         try {
+            // キーが存在しない場合は設定画面へ誘導
             if (!keyStoreHelper.isKeyExist() || !preferencesHelper.hasEncryptedKey()) {
                 Log.i(TAG, "API Key not configured or missing data. Opening settings.");
                 Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
@@ -161,13 +157,15 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
+            // 復号化に必要なCipherをKeystoreから取得
             Cipher cipher = keyStoreHelper.getDecryptCipher();
             showBiometricPrompt(cipher);
 
         } catch (Exception e) {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
-            // エラーが発生した場合は、ユーザーに設定画面へ誘導
+            // エラーが発生した場合は、設定画面へ誘導
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            // ★無限ループ対策：設定画面へ誘導する
             openSettings();
         }
     }
@@ -189,17 +187,17 @@ public class MainActivity extends AppCompatActivity {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
                         String ivString = preferencesHelper.getIv(); 
 
-                        // 【★修正箇所】: decryptDataからCipher引数を削除
-                        // 認証が成功したことでキーの利用が可能になったため、
-                        // ここで暗号化データとIVを使って復号化を実行します。
-                        apiKey = keyStoreHelper.decryptData(encryptedKey, ivString);
+                        // 【★修正箇所】: 認証済みのCipherをdecryptDataに渡す
+                        Cipher authenticatedCipher = result.getCryptoObject().getCipher();
+                        apiKey = keyStoreHelper.decryptData(encryptedKey, ivString, authenticatedCipher);
 
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
                         Toast.makeText(MainActivity.this, "APIキーの認証に成功しました", Toast.LENGTH_SHORT).show();
                         generateRecipeButton.setEnabled(true);
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
-                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました", Toast.LENGTH_LONG).show();
+                        // 復号化失敗時のループ対策：設定画面に戻らない
+                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。再認証してください。", Toast.LENGTH_LONG).show();
                         generateRecipeButton.setEnabled(false);
                         apiKey = null;
                     }
@@ -216,6 +214,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
                     Log.w(TAG, "Authentication error: " + errString);
+                    // 認証エラー時のループ対策：設定画面に戻らない
                     Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
                     generateRecipeButton.setEnabled(false);
                 }
@@ -224,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
             .setTitle("セキュリティ認証")
             .setSubtitle("APIキーを使用するため、指紋またはPINが必要です。")
-            .setNegativeButtonText("設定画面へ")
+            .setNegativeButtonText("設定画面へ") // 認証エラー時、ユーザーがタップして設定画面へ移動できるようにする
             .build();
 
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
@@ -259,14 +258,10 @@ public class MainActivity extends AppCompatActivity {
         // Spinnerから実際の選択値を取得する
         String difficulty = spinnerDifficulty.getSelectedItem().toString();
         String genre = spinnerGenre.getSelectedItem().toString();
-        // 時間と制約をプロンプトに追加するために結合
         String timeConstraint = spinnerTime.getSelectedItem().toString();
         String dietConstraint = spinnerDiet.getSelectedItem().toString();
 
-        // すべての制約を結合してAPIクライアントに渡す
-        // 注意: APIに渡す前に、"難易度: 初心者 (簡単)" のようなSpinnerの表示テキストから、
-        // "初心者 (簡単)" のような純粋な制約テキストを抽出するロジックを追加すると、
-        // AIへのプロンプトがより明確になります。
+        // すべての制約を結合
         String allConstraints = String.format("難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s", 
             difficulty, genre, timeConstraint, dietConstraint);
 
@@ -274,7 +269,6 @@ public class MainActivity extends AppCompatActivity {
         // UI操作の準備
         recipeOutputText.setText("レシピをAIが考案中です...");
         generateRecipeButton.setEnabled(false);
-        // XMLに追加したIDを参照
         loadingIndicator.setVisibility(View.VISIBLE);
 
         // APIクライアントの呼び出し 
