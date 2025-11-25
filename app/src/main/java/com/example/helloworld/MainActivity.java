@@ -1,3 +1,5 @@
+package com.example.liefantidia2;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -30,7 +32,8 @@ public class MainActivity extends AppCompatActivity {
     private Button generateRecipeButton;
     private Button settingsButton;
     private ImageButton cameraButton;
-    private ProgressBar loadingIndicator; // R.id.progress_bar_loading の参照先
+    // IDは元のR.id.progress_bar_loadingのまま保守
+    private ProgressBar loadingIndicator;
 
     // レシピ設定用のSpinner
     private Spinner spinnerDifficulty;
@@ -43,38 +46,32 @@ public class MainActivity extends AppCompatActivity {
     private KeyStoreHelper keyStoreHelper;
     private PreferencesHelper preferencesHelper;
 
-    // APIクライアント (このファイルには含まれていませんが、参照しているためそのまま残します)
+    // APIクライアント
     private GeminiApiClient apiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // R.layout.activity_main のXMLに progress_bar_loading IDを追加しました。
         setContentView(R.layout.activity_main); 
 
-        // ヘルパークラスとAPIクライアントの初期化 (これらのクラスが存在することを前提とします)
+        // ヘルパークラスとAPIクライアントの初期化
         keyStoreHelper = new KeyStoreHelper(this);
         preferencesHelper = new PreferencesHelper(this);
         apiClient = new GeminiApiClient();
 
         // UIコンポーネントの初期化
+        // IDは元のまま保守
         ingredientInput = findViewById(R.id.edit_text_ingredients);
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
-        
-        // 【修正点】: XMLに追加したR.id.progress_bar_loadingを初期化
+        // IDは元のまま保守
         loadingIndicator = findViewById(R.id.progress_bar_loading);
-        if (loadingIndicator != null) {
-            loadingIndicator.setVisibility(View.GONE);
-        } else {
-             Log.e(TAG, "FATAL: ProgressBar with ID progress_bar_loading not found in layout.");
-             // XMLファイルがまだ古い場合や読み込みエラーの場合に備えてログを出力
-        }
-        
+        loadingIndicator.setVisibility(View.GONE);
         cameraButton = findViewById(R.id.button_camera);
 
         // Spinnerの初期化
+        // IDは元のまま保守
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
         spinnerGenre = findViewById(R.id.spinner_genre);
         spinnerTime = findViewById(R.id.spinner_time);
@@ -273,10 +270,8 @@ public class MainActivity extends AppCompatActivity {
         // UI操作の準備
         recipeOutputText.setText("レシピをAIが考案中です...");
         generateRecipeButton.setEnabled(false);
-        // ローディングインジケータを表示
-        if (loadingIndicator != null) {
-            loadingIndicator.setVisibility(View.VISIBLE);
-        }
+        // XMLに追加したIDを参照
+        loadingIndicator.setVisibility(View.VISIBLE);
 
         // APIクライアントの呼び出し 
         apiClient.generateRecipe(apiKey, ingredients, difficulty, genre, allConstraints, new GeminiApiClient.RecipeCallback() {
@@ -291,10 +286,7 @@ public class MainActivity extends AppCompatActivity {
             public void onComplete() {
                 // UIスレッドで実行される
                 generateRecipeButton.setEnabled(true);
-                // ローディングインジケータを非表示
-                if (loadingIndicator != null) {
-                    loadingIndicator.setVisibility(View.GONE);
-                }
+                loadingIndicator.setVisibility(View.GONE);
                 Toast.makeText(MainActivity.this, "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
             }
 
@@ -302,10 +294,7 @@ public class MainActivity extends AppCompatActivity {
             public void onFailure(String error) {
                 // UIスレッドで実行される
                 generateRecipeButton.setEnabled(true);
-                // ローディングインジケータを非表示
-                if (loadingIndicator != null) {
-                    loadingIndicator.setVisibility(View.GONE);
-                }
+                loadingIndicator.setVisibility(View.GONE);
                 recipeOutputText.setText("エラーが発生しました:\n" + error);
                 Toast.makeText(MainActivity.this, "API呼び出しに失敗: " + error, Toast.LENGTH_LONG).show();
             }
