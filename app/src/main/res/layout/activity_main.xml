@@ -122,7 +122,7 @@
                     android:layout_height="wrap_content"
                     android:minHeight="48dp" />
                     
-                <!-- 3. Price Range Input (New Feature) -->
+                <!-- 3. Price Range Input -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -136,14 +136,19 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
                     
-                    <EditText
-                        android:id="@+id/edit_text_min_price"
+                    <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:hint="@string/hint_min_price"
-                        android:inputType="number"
-                        android:minHeight="48dp" />
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                        
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edit_text_min_price"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/hint_min_price"
+                            android:inputType="number" />
+                    </com.google.android.material.textfield.TextInputLayout>
                         
                     <TextView
                         android:layout_width="wrap_content"
@@ -153,14 +158,19 @@
                         android:text="〜"
                         android:textSize="24sp" />
                         
-                    <EditText
-                        android:id="@+id/edit_text_max_price"
+                    <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:hint="@string/hint_max_price"
-                        android:inputType="number"
-                        android:minHeight="48dp" />
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                        
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edit_text_max_price"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="@string/hint_max_price"
+                            android:inputType="number" />
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
                 <!-- 4. Output Area -->
@@ -169,13 +179,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:padding="8dp"
+                    android:padding="12dp"
                     android:minHeight="150dp"
                     android:text="@string/text_recipe_initial"
-                    android:background="@drawable/rounded_border"
                     android:scrollbars="vertical"
                     android:fadeScrollbars="false"
-                    android:textSize="14sp" />
+                    android:textSize="14sp" 
+                    android:background="@color/md_theme_light_background"/> <!-- シンプルな背景色に変更 -->
 
             </LinearLayout>
         </ScrollView>
