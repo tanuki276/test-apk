@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- MainActivity UI要素 -->
     <string name="app_name">liefantidia2</string>
 
-    <!-- MainActivity UI要素 -->
     <string name="label_ingredients">利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）</string>
     <string name="hint_ingredients">食材をコンマ区切りで入力</string>
+    <string name="button_camera_text">食材をカメラでスキャン</string> <!-- activity_main.xmlで参照するボタンテキスト -->
     <string name="content_description_camera">食材の画像を撮影</string>
     <string name="label_settings_title">レシピ設定（難易度、ジャンル、時間、制約）</string>
     <string name="label_price_range">予算（価格帯）設定</string>
@@ -27,5 +28,4 @@
     <string name="toast_input_ingredients">食材を入力してください。</string>
     <string name="error_invalid_price_range">最低価格が最高価格を超えています。</string>
     <string name="error_invalid_price_format">価格帯には有効な数値を入力してください。</string>
-
 </resources>
