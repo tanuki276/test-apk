@@ -24,26 +24,26 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # 🚨 最終解決ステップ: SDKコンポーネントのパスを設定 (Actions公式のベストプラクティス)
-      - name: 3. Android SDKパスの設定
-        run: echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-
-      # 4. Android SDKを手動でインストール（公式sdkmanagerを使用）
-      - name: 4. コマンドラインツールのインストールとライセンス承認
+      - name: 3. Android SDKパスの設定とツールのダウンロード
         run: |
-          mkdir -p $ANDROID_SDK_ROOT
+          # SDKルートとパス変数の設定
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          
+          # コマンドラインツールのダウンロードと展開
+          mkdir -p $HOME/android-sdk
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O android-clt.zip
-          unzip -q android-clt.zip -d $ANDROID_SDK_ROOT/cmdline-tools
-          mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+          unzip -q android-clt.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           rm android-clt.zip
           
-          # sdkmanagerのパスをPATHに追加
-          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          
-          # 🚨 ライセンスの自動承認 (必須)
+          # sdkmanagerのパスをPATHに登録（次のステップで有効になる）
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
+      # 🚨 修正: 独立したステップで SDK コンポーネントをインストール
+      - name: 4. SDKコンポーネントのインストールとライセンス承認
+        run: |
+          # PATHが読み込まれた状態で sdkmanager を実行
           yes | sdkmanager --licenses
-          
-          # 必要なSDKコンポーネントをインストール
           sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: 5. gradlew に実行権限を付与
