@@ -1,4 +1,4 @@
-package com.example.liefantidia;
+package com.example.liefantidia2;
 
 import android.os.Bundle;
 import android.util.Log;
