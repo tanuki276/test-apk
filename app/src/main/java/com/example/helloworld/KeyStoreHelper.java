@@ -1,11 +1,9 @@
-package com.example.liefantidia2;
+package com.example.helloworld;
 
 import android.content.Context;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
-import android.util.Base64;
 import android.util.Log;
-
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -13,9 +11,8 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.UnrecoverableKeyException;
+import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
-
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
@@ -25,159 +22,108 @@ import javax.crypto.spec.IvParameterSpec;
 public class KeyStoreHelper {
 
     private static final String TAG = "KeyStoreHelper";
-    private static final String KEY_ALIAS = "AIRecipeKey";
+    private static final String ANDROID_KEYSTORE = "AndroidKeyStore";
+    private static final String KEY_ALIAS = "GeminiApiKeyAlias";
 
-    // 暗号化に使用する設定
-    private static final String ANDROID_KEY_STORE = "AndroidKeyStore";
-    private static final String ENCRYPTION_ALGORITHM = KeyProperties.KEY_ALGORITHM_AES;
-    private static final String BLOCK_MODE = KeyProperties.BLOCK_MODE_CBC;
-    private static final String PADDING = KeyProperties.ENCRYPTION_PADDING_PKCS7;
-    private static final String TRANSFORMATION = ENCRYPTION_ALGORITHM + "/" + BLOCK_MODE + "/" + PADDING;
-
-    // 認証が有効な時間（秒）。0秒は「常に認証が必要」。
-    private static final int AUTH_DURATION_SECONDS = 3600; // 1時間
-
-    private final KeyStore keyStore;
-    // contextは直接利用しないが、インスタンスを維持
+    private KeyStore keyStore;
 
     public KeyStoreHelper(Context context) {
-        // KeyStoreの初期化は必須であり、失敗は許容しない
         try {
-            keyStore = KeyStore.getInstance(ANDROID_KEY_STORE);
+            keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
             keyStore.load(null);
-        } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
-            // 初期化に失敗した場合、RuntimeExceptionでアプリを停止させる
-            throw new RuntimeException("Failed to initialize KeyStore.", e);
+            createSecretKey(context);
+        } catch (KeyStoreException | CertificateException | NoSuchAlgorithmException |
+                 IOException | InvalidAlgorithmParameterException | NoSuchProviderException e) {
+            Log.e(TAG, "KeyStore initialization failed: " + e.getMessage());
         }
     }
 
-    /**
-     * Keystoreにキーが存在するか確認する
-     */
-    public boolean isKeyExist() {
+    private void createSecretKey(Context context) throws NoSuchAlgorithmException, NoSuchProviderException,
+            InvalidAlgorithmParameterException, KeyStoreException {
+
+        if (!keyStore.containsAlias(KEY_ALIAS)) {
+            KeyGenerator keyGenerator = KeyGenerator.getInstance(
+                    KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE);
+
+            KeyGenParameterSpec keyGenParameterSpec = new KeyGenParameterSpec.Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                    .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
+                    .setRandomizedEncryptionRequired(true)
+                    .build();
+
+            keyGenerator.init(keyGenParameterSpec);
+            keyGenerator.generateKey();
+            Log.d(TAG, "New SecretKey generated and stored.");
+        } else {
+            Log.d(TAG, "SecretKey already exists.");
+        }
+    }
+
+    private SecretKey getSecretKey() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableEntryException {
+        // KeyStoreからSecretKeyを取得する
+        return (SecretKey) keyStore.getKey(KEY_ALIAS, null);
+    }
+
+    public EncryptedData encrypt(String data) {
         try {
-            return keyStore.containsAlias(KEY_ALIAS);
-        } catch (KeyStoreException e) {
-            Log.e(TAG, "Key existence check failed.", e);
-            return false;
+            Cipher cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
+                    + KeyProperties.BLOCK_MODE_CBC + "/"
+                    + KeyProperties.ENCRYPTION_PADDING_PKCS7);
+
+            // getSecretKey()でKeyStoreから鍵を取得して初期化
+            cipher.init(Cipher.ENCRYPT_MODE, getSecretKey());
+
+            byte[] encryptedBytes = cipher.doFinal(data.getBytes());
+            byte[] iv = cipher.getIV();
+
+            return new EncryptedData(encryptedBytes, iv);
+
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
+                 UnrecoverableEntryException | KeyStoreException |
+                 Exception e) {
+            Log.e(TAG, "Encryption failed: " + e.getMessage());
+            return null;
         }
     }
 
-    /**
-     * キーを削除する
-     */
-    public void deleteKey() throws KeyStoreException {
-        if (keyStore.containsAlias(KEY_ALIAS)) {
-            keyStore.deleteEntry(KEY_ALIAS);
-            Log.i(TAG, "SecretKey deleted from Android Keystore.");
-        }
-    }
-
-    /**
-     * 新しい生体認証必須のキーを生成する
-     */
-    public void generateNewKey() throws NoSuchAlgorithmException, NoSuchProviderException,
-            InvalidAlgorithmParameterException {
-
-        // 既にキーが存在する場合は、削除してから生成すべき
+    public String decrypt(EncryptedData encryptedData) {
         try {
-            if (isKeyExist()) {
-                deleteKey();
-            }
-        } catch (KeyStoreException e) {
-            Log.w(TAG, "Could not delete existing key before regeneration.", e);
+            Cipher cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
+                    + KeyProperties.BLOCK_MODE_CBC + "/"
+                    + KeyProperties.ENCRYPTION_PADDING_PKCS7);
+
+            // getSecretKey()でKeyStoreから鍵を取得し、IVと共に初期化
+            SecretKey secretKey = getSecretKey();
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(encryptedData.getIv()));
+
+            byte[] decryptedBytes = cipher.doFinal(encryptedData.getEncryptedBytes());
+            return new String(decryptedBytes);
+
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException |
+                 UnrecoverableEntryException | KeyStoreException |
+                 InvalidAlgorithmParameterException | Exception e) {
+            Log.e(TAG, "Decryption failed: " + e.getMessage());
+            return null;
         }
-
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(ENCRYPTION_ALGORITHM, ANDROID_KEY_STORE);
-
-        keyGenerator.init(new KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(BLOCK_MODE)
-                .setEncryptionPaddings(PADDING)
-                .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(AUTH_DURATION_SECONDS)
-                .build());
-
-        keyGenerator.generateKey();
-        Log.i(TAG, "New SecretKey generated in Android Keystore.");
-    }
-
-    /**
-     * データを暗号化し、暗号化データとIVを返す
-     */
-    public EncryptedData encryptData(String dataToEncrypt) throws Exception {
-        // キー生成は外部で行うか、ここでチェックする
-        if (!isKeyExist()) {
-            // KeyStoreHelperはキーの生成はSettingsActivityに任せるべきだが、
-            // 念のためここで例外をスロー
-            throw new KeyStoreException("Encryption key does not exist. Call generateNewKey() first.");
-        }
-
-        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        // 暗号化時にはIVが自動生成される
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-
-        byte[] encryptedBytes = cipher.doFinal(dataToEncrypt.getBytes("UTF-8"));
-        byte[] iv = cipher.getIV();
-
-        String encryptedDataString = Base64.encodeToString(encryptedBytes, Base64.DEFAULT);
-        String ivString = Base64.encodeToString(iv, Base64.DEFAULT);
-
-        if (ivString == null || ivString.isEmpty()) {
-             throw new IllegalStateException("Cipher did not generate a valid Initialization Vector (IV).");
-        }
-
-        return new EncryptedData(encryptedDataString, ivString);
-    }
-
-    /**
-     * 復号化用に初期化されたCipherオブジェクトを取得する（IVなし）
-     * これを生体認証プロンプトのCryptoObjectとして使用する。
-     */
-    public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException,
-            InvalidKeyException, NoSuchProviderException, NoSuchPaddingException {
-
-        SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
-        if (secretKey == null) {
-            throw new UnrecoverableKeyException("Secret key is null. KeyStore might be locked or corrupt.");
-        }
-
-        // BiometricPromptの認証開始のために、IVなしでCipherをDECRYPT_MODEで初期化
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        // IVなしで初期化することで、認証キーの使用を許可する
-        cipher.init(Cipher.DECRYPT_MODE, secretKey);
-
-        return cipher;
-    }
-
-    /**
-     * 暗号化されたデータとIVを使って復号化を実行する
-     * @param cipher BiometricPrompt認証後に提供されたCipherオブジェクト
-     */
-    public String decryptData(String encryptedDataString, String ivString, Cipher cipher) throws Exception {
-
-        byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
-        byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
-
-        // BiometricPrompt認証済みのCipherを、IVParameterSpecを使ってDECRYPT_MODEで再初期化
-        // 認証済みのCipherに対してIVを設定し、復号化を完了させる
-        cipher.init(Cipher.DECRYPT_MODE, cipher.getKey(), new IvParameterSpec(iv));
-
-        byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
-
-        return new String(decryptedBytes, "UTF-8");
     }
 
     public static class EncryptedData {
-        public final String encryptedData;
-        public final String iv;
+        private final byte[] encryptedBytes;
+        private final byte[] iv;
 
-        public EncryptedData(String encryptedData, String iv) {
-            this.encryptedData = encryptedData;
+        public EncryptedData(byte[] encryptedBytes, byte[] iv) {
+            this.encryptedBytes = encryptedBytes;
             this.iv = iv;
+        }
+
+        public byte[] getEncryptedBytes() {
+            return encryptedBytes;
+        }
+
+        public byte[] getIv() {
+            return iv;
         }
     }
 }
