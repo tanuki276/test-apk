@@ -35,6 +35,7 @@ public class KeyStoreHelper {
     private static final String TRANSFORMATION = ENCRYPTION_ALGORITHM + "/" + BLOCK_MODE + "/" + PADDING;
 
     // 認証が有効な時間（秒）。0秒は「常に認証が必要」。
+    // 3600秒 (1時間) に設定します。
     private static final int AUTH_DURATION_SECONDS = 3600; 
 
     private final KeyStore keyStore;
@@ -46,10 +47,14 @@ public class KeyStoreHelper {
             keyStore = KeyStore.getInstance(ANDROID_KEY_STORE);
             keyStore.load(null);
         } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
+            // 初期化に失敗した場合、RuntimeExceptionでアプリを停止させる
             throw new RuntimeException("Failed to initialize KeyStore.", e);
         }
     }
 
+    /**
+     * Keystoreにキーが存在するか確認する
+     */
     public boolean isKeyExist() {
         try {
             return keyStore.containsAlias(KEY_ALIAS);
@@ -59,6 +64,9 @@ public class KeyStoreHelper {
         }
     }
 
+    /**
+     * 新しい生体認証必須のキーを生成する
+     */
     public void generateNewKey() throws NoSuchAlgorithmException, NoSuchProviderException,
             InvalidAlgorithmParameterException {
 
@@ -77,8 +85,12 @@ public class KeyStoreHelper {
         Log.i(TAG, "New SecretKey generated in Android Keystore.");
     }
 
+    /**
+     * データを暗号化し、暗号化データとIVを返す
+     */
     public EncryptedData encryptData(String dataToEncrypt) throws Exception {
         if (!isKeyExist()) {
+            // 暗号化前にキーが存在しない場合は生成
             generateNewKey();
         }
         
@@ -98,15 +110,14 @@ public class KeyStoreHelper {
 
     /**
      * 復号化用に初期化されたCipherオブジェクトを取得する（IVなし）
-     * BiometricPromptのCryptoObjectとして使用される。認証成功後、このCipherが利用可能になる。
+     * これを生体認証プロンプトのCryptoObjectとして使用する。
      */
     public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, 
             InvalidKeyException, NoSuchProviderException, NoSuchPaddingException {
 
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
-        // NOTE: ここではIVは不要。認証が成功し、このCipherが復号化に使用可能になった後、
-        // decryptData()メソッド内でIVを使って最終的な復号化を実行します。
+        // BiometricPromptの認証開始のために、IVなしでCipherをDECRYPT_MODEで初期化
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.DECRYPT_MODE, secretKey); 
         
@@ -115,21 +126,18 @@ public class KeyStoreHelper {
 
     /**
      * 暗号化されたデータとIVを使って復号化を実行する
-     * * NOTE: BiometricPromptから渡されるCipherは使用せず、新たにCipherを初期化することで、
-     * IV required... のエラーを回避します。
-     * @param encryptedDataString 暗号化されたAPIキー (Base64)
-     * @param ivString 初期化ベクトル (Base64)
+     * @param cipher BiometricPrompt認証後に提供されたCipherオブジェクト
      */
-    public String decryptData(String encryptedDataString, String ivString) throws Exception {
+    public String decryptData(String encryptedDataString, String ivString, Cipher cipher) throws Exception {
 
         byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
         byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
 
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
-        // 【★重要修正点】: BiometricPromptの認証完了後に、新しいCipherインスタンスを作成し、
-        // 鍵とIVParameterSpecを使って正しく初期化する。
-        Cipher cipher = Cipher.getInstance(TRANSFORMATION); 
+        // 【★重要修正点】: BiometricPromptで認証されたCipherオブジェクトを、
+        // 鍵とIVParameterSpecを使ってDECRYPT_MODEで再初期化する。
+        // これにより、認証セッションを維持しつつ、IV required... のエラーを回避します。
         cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(iv)); 
         
         byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
