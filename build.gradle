@@ -1,10 +1,16 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+ext.kotlin_version = '1.9.0'
+
 buildscript {
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
+        // AGP 8.2.2で固定
         classpath 'com.android.tools.build:gradle:8.2.2'
+        
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
@@ -13,4 +19,34 @@ allprojects {
         google()
         mavenCentral()
     }
+}
+
+plugins {
+    id 'com.android.application'
+    id 'maven-publish'
+}
+
+android {
+    namespace 'com.example.liefantidia'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.liefantidia"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
 }
