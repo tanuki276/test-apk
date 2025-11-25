@@ -1,4 +1,4 @@
-name: APK Java デバッグビルド
+Name: APK Java デバッグビルド
 
 on:
   push:
@@ -16,10 +16,11 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      - name: 2. JDK 17のセットアップ
+      # 修正: build.gradleのJavaターゲットに合わせ、JDK 11に変更
+      - name: 2. JDK 11のセットアップ
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '11' 
           distribution: 'temurin'
           cache: gradle
 
@@ -27,13 +28,15 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: 4. Gradleシステムキャッシュを削除（オプション）
+        # CI環境ではキャッシュの整合性問題が起こりやすいため、このステップは維持します
         run: rm -rf ~/.gradle/caches
 
+      # 修正: build.gradleのcompileSdkに合わせ、SDK 34に変更
       - name: 5. Android SDK のセットアップ
         uses: android-actions/setup-android@v3
         with:
-          sdk-version: '33'
-          build-tools: '33.0.2'
+          sdk-version: '34' # compileSdk 34に統一
+          build-tools: '34.0.0' # 34系最新版に変更
 
       - name: 6. デバッグAPKのビルド
         run: |
