@@ -8,44 +8,52 @@ on:
 
 jobs:
   build:
-    # 実行環境を指定
     runs-on: ubuntu-latest
     
-    # ★修正点: SKIP_JDK_VERSION_CHECK は JDK 17 を使用するため削除
+    # JDK 17とSDKツールの互換性問題を回避するために設定を復活させる
+    env:
+      SKIP_JDK_VERSION_CHECK: true 
 
     steps:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # build.gradleのJavaターゲットに合わせ、JDK 11を使用 (Gradleビルド用)
-      - name: 2. JDK 11のセットアップとGradleキャッシュの有効化
+      # --- 【変更箇所】 ---
+      # 2. SDKツール実行用にJDK 17をセットアップ
+      - name: 2. Android SDK Tool実行のためのJDK 17を一時的にセットアップ
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17' 
+          distribution: 'temurin'
+
+      # 3. Android SDK のセットアップ (API 34)
+      - name: 3. Android SDK のインストールとライセンス同意
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+        # このステップは、Step 2で設定されたJDK 17環境で実行されます
+
+      # 4. アプリビルド用にJDK 11に戻す
+      - name: 4. Gradleビルド用のJDK 11をセットアップし、キャッシュを有効化
         uses: actions/setup-java@v4
         with:
           java-version: '11' 
           distribution: 'temurin'
           cache: gradle
+      # --- 【変更箇所 終了】 ---
 
-      - name: 3. gradlew に実行権限を付与
+      - name: 5. gradlew に実行権限を付与
         run: chmod +x ./gradlew
-      
-      # build.gradleのcompileSdkに合わせ、SDK 34を使用
-      - name: 4. Android SDK のセットアップ (API 34)
-        uses: android-actions/setup-android@v3
-        with:
-          # ★修正点: sdkmanagerを実行するためにJDK 17を明示的に指定
-          java-version: '17'
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
-        # env: ブロックは削除
 
-      - name: 5. デバッグAPKのビルド (assembleDebug)
-        # このステップは、Step 2で設定されたJDK 11環境で実行されます
+      - name: 6. デバッグAPKのビルド (assembleDebug)
+        # このステップは、Step 4で設定されたJDK 11環境で実行されます
         run: |
           echo "署名なしでデバッグビルドを実行します。"
           ./gradlew clean assembleDebug --no-daemon --stacktrace
 
-      - name: 6. 成果物 (APKファイル) のアップロード
+      - name: 7. 成果物 (APKファイル) のアップロード
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
