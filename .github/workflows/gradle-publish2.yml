@@ -1,8 +1,15 @@
 name: APK Java ビルド (リリース)
 
 on:
+  # メイントリガー: GitHubリポジトリで新しいリリースが作成されたときに実行
   release:
     types: [created]
+
+  # 🟢 追加: メインブランチへのコード変更時に自動実行
+  push:
+    branches: [ main, master ] 
+
+  # 手動実行を許可
   workflow_dispatch: 
 
 jobs:
@@ -18,24 +25,22 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # キャッシュ復元は無効 (以前の修正)
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      # ----------------------------------------------------
-      # 🚨 強制リセットステップ 🚨 (デーモン停止とキャッシュ削除の組み合わせ)
-      # ----------------------------------------------------
+      # 🚨 強制リセット: システムキャッシュを完全に破壊
       - name: 3.5. Gradleシステムキャッシュを強制削除
-        # 前回と同じ。システムキャッシュを確実にクリアします。
         run: rm -rf ~/.gradle/caches
 
       # ----------------------------------------------------
-      # ビルドタスクの実行 (★修正点: --no-daemon を追加)
+      # 🚨 最終回避策: ビルドタスクの実行 (競合防止)
       # ----------------------------------------------------
       - name: 4. リリースAPKのビルド (assembleRelease)
-        # 🟢 --no-daemon を追加し、Gradleデーモンを使用せず、単一プロセスでビルドを強制します。
-        # これにより、デーモンが保持している可能性のある破損したセッション情報を排除します。
-        run: ./gradlew clean assembleRelease --no-daemon --stacktrace --info
+        # 🟢 --no-daemon: デーモンによる破損セッション情報の保持を無効化
+        # 🟢 -Dgradle.parallel=false: タスクの並列実行を無効化し、リソース競合を強制的に防ぐ
+        run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
       # ----------------------------------------------------
       # 成果物のアップロード
@@ -44,5 +49,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
+          # APKの格納場所
           path: app/build/outputs/apk/release/
           retention-days: 7
