@@ -19,13 +19,16 @@ import okhttp3.Response;
 import okhttp3.HttpUrl;
 
 /**
- * Gemini/GPT APIと通信し、レシピを生成するためのクライアントクラス。
+ * Gemini APIと通信し、レシピを生成するためのクライアントクラス。
  * ネットワーク処理は非同期で実行する。
  */
 public class GeminiApiClient {
 
     private static final String TAG = "GeminiApiClient";
-    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+    // 2.5-flash-preview-09-2025 を使用
+    private static final String MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+    // API URLはモデル名とキーをQuery Parameterで渡す
+    private static final String API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final ExecutorService executor;
@@ -35,23 +38,19 @@ public class GeminiApiClient {
     public GeminiApiClient() {
         executor = Executors.newSingleThreadExecutor();
         handler = new Handler(Looper.getMainLooper());
+        // タイムアウト設定などを必要に応じて追加可能
         client = new OkHttpClient();
     }
 
     public interface RecipeCallback {
-        void onNewChunk(String chunk);
+        // ストリーミングではないため、onNewChunkをonResultに変更（名前だけ）
+        void onResult(String result);
         void onComplete();
         void onFailure(String error);
     }
 
     /**
      * ユーザーの設定に基づき、レシピ生成プロセスを開始する。
-     * @param apiKey 認証済みのAPIキー
-     * @param ingredients 食材リスト
-     * @param difficulty 難易度設定
-     * @param genre ジャンル設定
-     * @param allConstraints 時間・食事制限などを含むその他の制約文字列
-     * @param callback 結果をMainActivityに返すためのインターフェース
      */
     public void generateRecipe(String apiKey, String ingredients, String difficulty, String genre, String allConstraints, RecipeCallback callback) {
 
@@ -59,14 +58,14 @@ public class GeminiApiClient {
             Response response = null;
             try {
                 // 1. プロンプト生成
-                // ★修正点：allConstraintsを渡す
                 String prompt = buildPrompt(ingredients, difficulty, genre, allConstraints);
-                
+
                 // 2. APIリクエストボディ (JSON) を構築
                 String jsonBody = buildJsonPayload(prompt);
 
                 // 3. APIリクエストの構築
-                HttpUrl httpUrl = HttpUrl.parse(API_URL).newBuilder()
+                // API URLは BASE_URL + MODEL_NAME + :generateContent?key=...
+                HttpUrl httpUrl = HttpUrl.parse(API_BASE_URL + MODEL_NAME + ":generateContent").newBuilder()
                                         .addQueryParameter("key", apiKey)
                                         .build();
 
@@ -88,10 +87,10 @@ public class GeminiApiClient {
                 // 5. レスポンスのパースと結果の抽出
                 String responseBody = response.body().string();
                 String generatedText = parseResponse(responseBody);
-                
+
                 // 6. UIスレッドで結果を通知
                 handler.post(() -> {
-                    callback.onNewChunk(generatedText);
+                    callback.onResult(generatedText);
                     callback.onComplete();
                 });
 
@@ -109,12 +108,12 @@ public class GeminiApiClient {
 
     /**
      * ユーザー設定を統合したプロンプト文字列を生成する
-     * ★修正点：allConstraintsを受け取る
      */
     private String buildPrompt(String ingredients, String difficulty, String genre, String allConstraints) {
         String expertise = "";
         String constraint = "";
 
+        // 難易度によるペルソナと制約の設定
         if (difficulty.contains("初心者")) {
             expertise = "料理初心者にも分かりやすい言葉で、失敗しない手順を提案するプロの料理人として振る舞ってください。";
             constraint = "手順は短く区切り、難しい調理技術は使わないでください。";
@@ -126,6 +125,7 @@ public class GeminiApiClient {
              constraint = "";
         }
 
+        // プロンプトの統合
         String prompt = "あなたはAIレシピ提案アシスタントです。"
                 + expertise
                 + "\n\n以下の条件と食材に基づいて、調理手順を含むレシピを一つ提案してください。"
@@ -133,7 +133,7 @@ public class GeminiApiClient {
                 + "\n[入力食材]: " + ingredients
                 + "\n[難易度]: " + difficulty
                 + "\n[ジャンル]: " + genre
-                + "\n[追加制約]: " + allConstraints // ★修正点：新しい制約を追加
+                + "\n[追加制約]: " + allConstraints
                 + "\n[その他技術制約]: " + constraint
                 + "\n\n提案は、レシピ名、材料（分量付き）、調理手順の順に、Markdown形式で出力してください。"
                 + "\n---";
@@ -142,12 +142,15 @@ public class GeminiApiClient {
     }
 
     /**
-     * Gemini APIに送信するためのJSONペイロードを構築する (変更なし)
+     * Gemini APIに送信するためのJSONペイロードを構築する
+     * Google Search Groundingを有効化する設定を追加
      */
     private String buildJsonPayload(String prompt) {
         try {
             JSONObject contentPart = new JSONObject();
-            contentPart.put("text", prompt);
+            // JSON文字列内の二重引用符をエスケープ
+            String safePrompt = prompt.replace("\"", "\\\"");
+            contentPart.put("text", safePrompt);
 
             JSONArray partsArray = new JSONArray();
             partsArray.put(contentPart);
@@ -159,9 +162,25 @@ public class GeminiApiClient {
             JSONArray contentsArray = new JSONArray();
             contentsArray.put(content);
 
+            // Google Search Grounding Tool
+            JSONObject tool = new JSONObject();
+            tool.put("google_search", new JSONObject());
+
+            JSONArray toolsArray = new JSONArray();
+            toolsArray.put(tool);
+
+            // System Instruction
+            JSONObject systemInstructionPart = new JSONObject();
+            systemInstructionPart.put("text", "あなたはプロの料理研究家です。日本のユーザーに最適なレシピを提案します。");
+
+            JSONObject systemInstruction = new JSONObject();
+            systemInstruction.put("parts", new JSONArray().put(systemInstructionPart));
+
             JSONObject payload = new JSONObject();
             payload.put("contents", contentsArray);
             payload.put("temperature", 0.7);
+            payload.put("tools", toolsArray); // Grounding Toolを追加
+            payload.put("systemInstruction", systemInstruction);
 
             return payload.toString();
         } catch (Exception e) {
@@ -171,26 +190,30 @@ public class GeminiApiClient {
     }
 
     /**
-     * APIレスポンス (JSON) から生成されたテキストを抽出する (変更なし)
+     * APIレスポンス (JSON) から生成されたテキストを抽出する
      */
     private String parseResponse(String responseBody) {
         try {
             JSONObject json = new JSONObject(responseBody);
-            
+
             JSONArray candidates = json.getJSONArray("candidates");
             if (candidates.length() > 0) {
                 JSONObject candidate = candidates.getJSONObject(0);
                 JSONObject content = candidate.getJSONObject("content");
                 JSONArray parts = content.getJSONArray("parts");
                 if (parts.length() > 0) {
-                    return parts.getJSONObject(0).getString("text");
+                    String rawText = parts.getJSONObject(0).getString("text");
+                    // エスケープシーケンスのデコード
+                    return rawText.replace("\\n", "\n")
+                                  .replace("\\\"", "\"")
+                                  .replace("\\\\", "\\");
                 }
             }
-            return "レシピ生成に失敗しました。APIが応答をブロックした可能性があります。";
+            return "レシピ生成に失敗しました。APIが応答をブロックした可能性があります。\n" + responseBody;
 
         } catch (Exception e) {
             Log.e(TAG, "APIレスポンスのパースに失敗: " + responseBody, e);
-            return "エラー: APIからの応答を読み取れませんでした。";
+            return "エラー: APIからの応答を読み取れませんでした。\n" + responseBody;
         }
     }
 }
