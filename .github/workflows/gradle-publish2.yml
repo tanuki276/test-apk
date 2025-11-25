@@ -16,17 +16,17 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 2. Java 17 のセットアップ (actions/setup-java@v4 は信頼できるため維持)
+      # 2. Java 17 のセットアップ (Gradleキャッシュ利用)
       - name: 2. Java 17 のセットアップ
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
+          cache: 'gradle' # ユーザーの指摘に基づき、このキャッシュ設定に任せる
 
       - name: 3. Android SDKパスの設定とツールのダウンロード
         run: |
-          # 🚨 最終修正: デフォルトの ANDROID_HOME を上書きし、競合を解消
+          # SDKのインストールパスを定義
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           
@@ -37,7 +37,7 @@ jobs:
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           rm android-clt.zip
           
-          # sdkmanagerのパスをPATHに登録（次のステップで有効になる）
+          # sdkmanagerのパスをPATHに登録
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       - name: 4. SDKコンポーネントのインストールとライセンス承認
@@ -49,14 +49,22 @@ jobs:
       - name: 5. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 6. Gradleシステムキャッシュを強制削除
-        run: rm -rf ~/.gradle/caches
+      # ユーザーの指摘に基づき、ステップ6 (キャッシュの強制削除) は削除しました。
 
-      - name: 7. リリースAPKのビルド (assembleRelease)
-        # 🚨 JDK 17 のホームディレクトリを明示的に指定して実行（念のため）
-        run: JAVA_HOME=$JAVA_HOME ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
+      - name: 6. リリースAPKのビルド (assembleRelease)
+        run: |
+          # ユーザー提案: 環境変数とツールのPATHを明示的にエクスポートし、Gradleの環境認識を確実にする
+          export ANDROID_HOME=$HOME/android-sdk
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          export JAVA_HOME=$JAVA_HOME # JAVA_HOMEも明示的にエクスポート
+          
+          # ユーザー提案: ツールが確実に見えるように PATH にビルドツールとプラットフォームツールを追加
+          export PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/34.0.0:$PATH
 
-      - name: 8. リリースAPKの成果物をアップロード
+          # Gradleの実行
+          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
+
+      - name: 7. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
           name: liefantidia-apk
