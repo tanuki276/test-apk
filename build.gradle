@@ -1,4 +1,12 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+// 🚨 修正点: plugins {} ブロックをファイルの先頭に移動しました。
+plugins {
+    id 'com.android.application' version '8.2.2' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
+    id 'maven-publish'
+}
+
 ext.kotlin_version = '1.9.0'
 
 buildscript {
@@ -20,33 +28,5 @@ allprojects {
         mavenCentral()
     }
 }
-
-plugins {
-    id 'com.android.application'
-    id 'maven-publish'
-}
-
-android {
-    namespace 'com.example.liefantidia'
-    compileSdk 34
-
-    defaultConfig {
-        applicationId "com.example.liefantidia"
-        minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-}
-
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.9.0'
-}
+// 🚨 旧：plugins {} ブロックと android {} ブロックは削除しました。
+// これらは app/build.gradle で定義されます。
