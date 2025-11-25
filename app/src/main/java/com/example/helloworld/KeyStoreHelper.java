@@ -18,14 +18,13 @@ import java.security.cert.CertificateException;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException; // このインポートはすでにあるため問題なし
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 public class KeyStoreHelper {
 
     private static final String TAG = "KeyStoreHelper";
-    // Keystoreに鍵を保存する際の固有のエイリアス（名前）
     private static final String KEY_ALIAS = "AIRecipeKey";
 
     // 暗号化に使用する設定
@@ -35,23 +34,24 @@ public class KeyStoreHelper {
     private static final String PADDING = KeyProperties.ENCRYPTION_PADDING_PKCS7;
     private static final String TRANSFORMATION = ENCRYPTION_ALGORITHM + "/" + BLOCK_MODE + "/" + PADDING;
 
+    // 認証が有効な時間（秒）。0秒は「常に認証が必要」。
+    // 鍵生成のエラーを避けるため、今回は長めに設定するが、通常は0秒が推奨される。
+    private static final int AUTH_DURATION_SECONDS = 3600; // 1時間
+
     private final KeyStore keyStore;
     private final Context context;
 
     public KeyStoreHelper(Context context) {
         this.context = context;
         try {
-            // Android Keystore インスタンスを取得
             keyStore = KeyStore.getInstance(ANDROID_KEY_STORE);
-            keyStore.load(null); // KeyStoreをロード
+            keyStore.load(null);
         } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
+            // 初期化失敗は致命的
             throw new RuntimeException("Failed to initialize KeyStore.", e);
         }
     }
 
-    /**
-     * 指定されたエイリアスの秘密鍵がKeystore内に存在するか確認する
-     */
     public boolean isKeyExist() {
         try {
             return keyStore.containsAlias(KEY_ALIAS);
@@ -63,23 +63,22 @@ public class KeyStoreHelper {
 
     /**
      * 新しい秘密鍵を生成し、Keystoreに保存する
-     * 鍵の使用には生体認証を必須とする
+     * 鍵の復号（利用）には生体認証を必須とする
      */
     public void generateNewKey() throws NoSuchAlgorithmException, NoSuchProviderException,
             InvalidAlgorithmParameterException {
 
-        // KeyGeneratorでAESアルゴリズムを選択
         KeyGenerator keyGenerator = KeyGenerator.getInstance(ENCRYPTION_ALGORITHM, ANDROID_KEY_STORE);
 
-        // KeyGenParameterSpecで鍵の生成パラメータを設定
         keyGenerator.init(new KeyGenParameterSpec.Builder(
                 KEY_ALIAS,
                 KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(BLOCK_MODE)
                 .setEncryptionPaddings(PADDING)
-                // ★最重要設定: 鍵の使用にユーザー認証（指紋/PIN）を必須にする
+                // 【★重要修正点 1】: 復号（DECRYPT）時のみユーザー認証を必須にする
                 .setUserAuthenticationRequired(true)
-                // 認証有効期間の設定は省略（毎回認証が必要な設定）
+                // 【★重要修正点 2】: 認証の有効期間を設定する (鍵生成エラー回避のため)
+                .setUserAuthenticationValidityDurationSeconds(AUTH_DURATION_SECONDS) 
                 .build());
 
         keyGenerator.generateKey();
@@ -88,27 +87,25 @@ public class KeyStoreHelper {
 
     /**
      * 平文データ（APIキー）を暗号化する
-     * このメソッドはSettingsActivityでAPIキーを保存するときに使用される
+     * この暗号化処理自体は認証不要で実行可能
      */
     public EncryptedData encryptData(String dataToEncrypt) throws Exception {
+        // NOTE: isKeyExist()がtrueでも、generateNewKey()はSettingsActivity側で呼ばれるべき
         if (!isKeyExist()) {
-            // 鍵が存在しない場合は、まず生成する
+            // 鍵が存在しない場合は、ここで生成処理を呼び出す
             generateNewKey();
         }
+        
+        // 鍵の取得。setUserAuthenticationRequired(true)でも暗号化時には認証は不要。
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
-        // 暗号化用のCipherを初期化（認証は不要）
-        // Cipher.getInstance() は NoSuchPaddingException, NoSuchAlgorithmException をスローする
+        // 暗号化用のCipherを初期化
         Cipher cipher = Cipher.getInstance(TRANSFORMATION); 
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey); // 暗号化モードで初期化
 
-        // 暗号化を実行
         byte[] encryptedBytes = cipher.doFinal(dataToEncrypt.getBytes("UTF-8"));
-
-        // 初期化ベクトル (IV) も復号化のために保存する必要がある
         byte[] iv = cipher.getIV();
 
-        // Base64エンコードして、文字列として保存可能にする
         String encryptedDataString = Base64.encodeToString(encryptedBytes, Base64.DEFAULT);
         String ivString = Base64.encodeToString(iv, Base64.DEFAULT);
 
@@ -117,45 +114,38 @@ public class KeyStoreHelper {
 
     /**
      * 復号化用に初期化されたCipherオブジェクトを取得する
-     * MainActivityで生体認証を行う直前に呼び出される
+     * このCipherは、生体認証（BiometricPrompt）のCryptoObjectとして使用される
      */
     public Cipher getDecryptCipher() throws KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException, 
-            InvalidKeyException, NoSuchProviderException, NoSuchPaddingException { // 🚨 ここに NoSuchPaddingException を追加
-        
+            InvalidKeyException, NoSuchProviderException, NoSuchPaddingException {
+
         SecretKey secretKey = (SecretKey) keyStore.getKey(KEY_ALIAS, null);
 
-        // Cipherを復号化モードで初期化。認証必須のため、この時点では復号化はできない。
-        // ここで Cipher.getInstance() が NoSuchPaddingException をスローする
+        // Cipherを復号化モードで初期化。認証必須のため、認証成功前は使用できない。
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.DECRYPT_MODE, secretKey); 
-        // 実際の復号化は、BiometricPromptのCryptoObject経由で認証成功後に行われる
-
+        
         return cipher;
     }
 
     /**
      * 暗号化されたデータとIVを使って復号化を実行する
-     * このメソッドはBiometricPrompt認証成功後に呼び出される
-     * @param encryptedDataString Base64でエンコードされた暗号化データ
-     * @param ivString Base64でエンコードされたIV
      * @param cipher 認証に成功して使えるようになったCipherオブジェクト
      */
     public String decryptData(String encryptedDataString, String ivString, Cipher cipher) throws Exception {
 
-        // 保存されたIVと暗号化データをデコード
         byte[] iv = Base64.decode(ivString, Base64.DEFAULT);
         byte[] encryptedBytes = Base64.decode(encryptedDataString, Base64.DEFAULT);
 
-        // CipherにIVを設定して復号化
-        cipher.init(Cipher.DECRYPT_MODE, keyStore.getKey(KEY_ALIAS, null), new IvParameterSpec(iv));
+        // BiometricPromptから渡されたCipherはすでに初期化されているため、
+        // IVを設定して再度初期化する必要がある。
+        // NOTE: cipher.init() は、BiometricPromptから渡されたCipherのキーを再利用する。
+        cipher.init(Cipher.DECRYPT_MODE, cipher.getKey(), new IvParameterSpec(iv)); 
         byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
 
         return new String(decryptedBytes, "UTF-8");
     }
 
-    /**
-     * 暗号化データとIVを保持するための簡易クラス
-     */
     public static class EncryptedData {
         public final String encryptedData;
         public final String iv;
