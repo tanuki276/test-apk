@@ -1,4 +1,4 @@
-Name: APK Java デバッグビルド
+name: APK Java デバッグビルド
 
 on:
   push:
