@@ -30,18 +30,19 @@ android {
 }
 
 dependencies {
-    // 依存関係を最新の安定版に統一
+    // AndroidX Core and UI libraries
     implementation 'androidx.core:core:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.10.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // 🚨 必須追加: BiometricPrompt (あなたのJavaコードで利用されています)
+    // 🚨 必須追加: BiometricPrompt ライブラリ
     implementation 'androidx.biometric:biometric:1.1.0' 
 
-    // 以下の依存関係は通常、自動で含まれますが、念のため
-    // implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+    // APIクライアントで使用するために、HTTPクライアントも追加しておく
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0' 
     
+    // Test dependencies
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
