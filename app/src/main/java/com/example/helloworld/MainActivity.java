@@ -82,6 +82,8 @@ public class MainActivity extends AppCompatActivity {
         cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
 
         // アプリ起動時にキーを読み出す処理を開始
+        // generateRecipeButtonを初期状態で無効化し、認証成功後に有効にする
+        generateRecipeButton.setEnabled(false);
         loadApiKey();
     }
 
@@ -149,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadApiKey() {
         try {
-            // キーが存在しない場合は設定画面へ誘導
+            // 1. キーが存在しない場合は設定画面へ誘導
             if (!keyStoreHelper.isKeyExist() || !preferencesHelper.hasEncryptedKey()) {
                 Log.i(TAG, "API Key not configured or missing data. Opening settings.");
                 Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
@@ -157,16 +159,17 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // 復号化に必要なCipherをKeystoreから取得
+            // 2. 復号化に必要なCipherをKeystoreから取得
             Cipher cipher = keyStoreHelper.getDecryptCipher();
             showBiometricPrompt(cipher);
 
         } catch (Exception e) {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
-            // エラーが発生した場合は、設定画面へ誘導
+            // ★修正点★: ループ対策として、エラーが発生した場合に設定画面へ誘導する処理を削除し、
+            // 認証ボタンを無効化するのみにする。（ユーザーが手動で設定画面に行く必要がある）
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            // ★無限ループ対策：設定画面へ誘導する
-            openSettings();
+            generateRecipeButton.setEnabled(false);
+            // openSettings() の呼び出しを削除
         }
     }
 
@@ -196,10 +199,11 @@ public class MainActivity extends AppCompatActivity {
                         generateRecipeButton.setEnabled(true);
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
-                        // 復号化失敗時のループ対策：設定画面に戻らない
-                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。再認証してください。", Toast.LENGTH_LONG).show();
+                        // 復号化失敗時: キーはクリアせず、無効化してユーザーに再認証を促す
+                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。原因: " + e.getMessage(), Toast.LENGTH_LONG).show();
                         generateRecipeButton.setEnabled(false);
                         apiKey = null;
+                        // 設定画面へ戻る処理は行わない
                     }
                 }
 
@@ -214,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
                     Log.w(TAG, "Authentication error: " + errString);
-                    // 認証エラー時のループ対策：設定画面に戻らない
+                    // 認証エラー時: ループ対策として設定画面に戻る処理は行わない
                     Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
                     generateRecipeButton.setEnabled(false);
                 }
@@ -223,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
             .setTitle("セキュリティ認証")
             .setSubtitle("APIキーを使用するため、指紋またはPINが必要です。")
-            .setNegativeButtonText("設定画面へ") // 認証エラー時、ユーザーがタップして設定画面へ移動できるようにする
+            .setNegativeButtonText("キャンセル") // ループ対策のため、「設定画面へ」ではなく「キャンセル」にする
             .build();
 
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
@@ -244,11 +248,12 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startRecipeGeneration() {
         if (apiKey == null || apiKey.isEmpty()) {
-            Toast.makeText(this, "APIキーがロードされていません。認証してください。", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "APIキーがロードされていません。認証が必要です。", Toast.LENGTH_LONG).show();
+            // 再度認証プロセスを開始
             loadApiKey();
             return;
         }
-
+        // ... (以下略) ...
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
             Toast.makeText(this, "食材を入力してください。", Toast.LENGTH_SHORT).show();
