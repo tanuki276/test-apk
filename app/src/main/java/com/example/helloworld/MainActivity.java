@@ -28,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     // UIコンポーネント (R.id.〇〇はactivity_main.xmlで定義されています)
     private EditText ingredientInput;
+    private EditText minPriceInput; // ★新規追加★
+    private EditText maxPriceInput; // ★新規追加★
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
@@ -60,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
 
         // UIコンポーネントの初期化
         ingredientInput = findViewById(R.id.edit_text_ingredients);
+        minPriceInput = findViewById(R.id.edit_text_min_price); // ★新規追加★
+        maxPriceInput = findViewById(R.id.edit_text_max_price); // ★新規追加★
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
@@ -142,6 +146,14 @@ public class MainActivity extends AppCompatActivity {
         // 既にロードされていない、またはキーがクリアされている場合に再認証を試みる
         if (apiKey == null && preferencesHelper.hasEncryptedKey()) {
              loadApiKey();
+        } else if (preferencesHelper.hasEncryptedKey() && apiKey != null) {
+             // キーが保存されており、既にロードされている場合（設定画面から戻ったが、キーはそのまま）
+             generateRecipeButton.setEnabled(true);
+        } else if (!preferencesHelper.hasEncryptedKey()) {
+             // キーデータがPreferencesから消えている場合（設定画面でキーがクリアされたなど）
+             apiKey = null;
+             generateRecipeButton.setEnabled(false);
+             Toast.makeText(this, "APIキーを設定してください。", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -165,11 +177,10 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
-            // ★修正点★: ループ対策として、エラーが発生した場合に設定画面へ誘導する処理を削除し、
-            // 認証ボタンを無効化するのみにする。（ユーザーが手動で設定画面に行く必要がある）
+            // ループ対策として、エラーが発生した場合に設定画面へ誘導する処理を削除し、
+            // 認証ボタンを無効化するのみにする。
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
             generateRecipeButton.setEnabled(false);
-            // openSettings() の呼び出しを削除
         }
     }
 
@@ -190,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
                         String encryptedKey = preferencesHelper.getEncryptedKey();
                         String ivString = preferencesHelper.getIv(); 
 
-                        // 【★修正箇所】: 認証済みのCipherをdecryptDataに渡す
+                        // 認証済みのCipherをdecryptDataに渡す
                         Cipher authenticatedCipher = result.getCryptoObject().getCipher();
                         apiKey = keyStoreHelper.decryptData(encryptedKey, ivString, authenticatedCipher);
 
@@ -203,7 +214,6 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。原因: " + e.getMessage(), Toast.LENGTH_LONG).show();
                         generateRecipeButton.setEnabled(false);
                         apiKey = null;
-                        // 設定画面へ戻る処理は行わない
                     }
                 }
 
@@ -227,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
             .setTitle("セキュリティ認証")
             .setSubtitle("APIキーを使用するため、指紋またはPINが必要です。")
-            .setNegativeButtonText("キャンセル") // ループ対策のため、「設定画面へ」ではなく「キャンセル」にする
+            .setNegativeButtonText("キャンセル") 
             .build();
 
         biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
@@ -253,12 +263,39 @@ public class MainActivity extends AppCompatActivity {
             loadApiKey();
             return;
         }
-        // ... (以下略) ...
+        
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
             Toast.makeText(this, "食材を入力してください。", Toast.LENGTH_SHORT).show();
             return;
         }
+        
+        // ★新規追加★: 価格帯の取得
+        String minPrice = minPriceInput.getText().toString().trim();
+        String maxPrice = maxPriceInput.getText().toString().trim();
+        String priceConstraint = "";
+        
+        if (!minPrice.isEmpty() || !maxPrice.isEmpty()) {
+            // 入力が不正な場合のバリデーション
+            try {
+                int min = minPrice.isEmpty() ? 0 : Integer.parseInt(minPrice);
+                // maxPriceが空の場合は「制限なし」として扱う
+                if (maxPrice.isEmpty()) {
+                     priceConstraint = String.format("価格帯: %d円〜制限なし", min);
+                } else {
+                     int max = Integer.parseInt(maxPrice);
+                     if (min > max) {
+                         Toast.makeText(this, "最低価格が最高価格を超えています。", Toast.LENGTH_LONG).show();
+                         return; // 実行を中断
+                     }
+                     priceConstraint = String.format("価格帯: %d円〜%d円", min, max);
+                }
+            } catch (NumberFormatException e) {
+                 Toast.makeText(this, "価格帯には有効な数値を入力してください。", Toast.LENGTH_LONG).show();
+                 return; // 実行を中断
+            }
+        }
+
 
         // Spinnerから実際の選択値を取得する
         String difficulty = spinnerDifficulty.getSelectedItem().toString();
@@ -267,8 +304,16 @@ public class MainActivity extends AppCompatActivity {
         String dietConstraint = spinnerDiet.getSelectedItem().toString();
 
         // すべての制約を結合
-        String allConstraints = String.format("難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s", 
-            difficulty, genre, timeConstraint, dietConstraint);
+        StringBuilder allConstraintsBuilder = new StringBuilder();
+        allConstraintsBuilder.append(String.format("難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s", 
+            difficulty, genre, timeConstraint, dietConstraint));
+            
+        // ★新規追加★: 価格制約を追加
+        if (!priceConstraint.isEmpty()) {
+             allConstraintsBuilder.append(", ").append(priceConstraint);
+        }
+
+        String allConstraints = allConstraintsBuilder.toString();
 
 
         // UI操作の準備
