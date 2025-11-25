@@ -1,4 +1,4 @@
-package com.example.liefantidia;
+package com.example.liefantidia2;
 
 import android.content.Context;
 import android.content.SharedPreferences;
