@@ -109,10 +109,7 @@ jobs:
           
           echo "検証対象APKファイル: $APK_PATH"
 
-          # apksigner または jarsigner のチェック
-          # ここでは、jarsigner（JDKに含まれる）を使って署名情報をリストアップします。
-          # 'jarsigner -verify -verbose -certs' コマンドで署名情報（証明書）が表示されれば、署名されていると判断できます。
-          
+          # jarsigner で署名情報を検証
           if jarsigner -verify -verbose -certs "$APK_PATH" | grep "signature was verified"; then
               echo "::notice:: 🎉 【署名成功】APKファイルはキーストアによって正しく署名されています。"
               echo "--- 署名情報の詳細 ---"
@@ -126,17 +123,18 @@ jobs:
           fi
 
 
-      # 5.2. 署名プロパティがない場合: 未署名ビルドを実行
+      # 5.2. 署名プロパティがない場合: 未署名ビルドを**強制**実行
       # ステップ4.5でSIGNED=falseが設定された場合に実行される
-      - name: 5.2. 未署名リリースAPKをビルド
+      - name: 5.2. 未署名リリースAPKを強制ビルド
         if: ${{ steps.setup_signing.outputs.SIGNED == 'false' }}
         run: |
           echo "署名プロパティがないため、未署名ビルド (assembleRelease) を実行します。"
-          # 未署名の場合、署名関連のプロパティは渡さない
-          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
+          # 未署名ビルドを強制するために 'signingConfig=debug' をインジェクト
+          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace \
+            -Pandroid.injected.signing.config=debug
 
       # ----------------------------------------------------
-      # 成果物のアップロード
+      # 6. 成果物のアップロード (署名済み/未署名にかかわらずアップロード)
       # ----------------------------------------------------
       - name: 6. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
