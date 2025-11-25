@@ -5,12 +5,13 @@ plugins {
 }
 
 android {
-    namespace 'com.example.liefantidia2' 
+    namespace 'com.example.liefantidia2'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.liefantidia"
-        minSdk 24
+        // アプリケーションIDはプロジェクト全体で一貫させる
+        applicationId "com.example.liefantidia2" 
+        minSdk 26 // KeyStore/Biometricの安定性と互換性を考慮し26を維持
         targetSdk 34
         versionCode 1
         versionName "1.0"
@@ -18,54 +19,26 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // ------------------------------------------------------------------
-    // 💡 リリース署名設定ブロック (CIの環境変数から情報を取得し、署名を強制)
-    // ------------------------------------------------------------------
-    signingConfigs {
-        release {
-            // GitHub ActionsのYAMLから渡される環境変数を取得
-            def keystoreFile = System.getenv('SIGNING_KEY_FILE')
-            def keystorePass = System.getenv('KEYSTORE_PASSWORD')
-            def keyAlias = System.getenv('KEY_ALIAS')
-            def keyPass = System.getenv('KEY_PASSWORD')
-            
-            // 環境変数が存在する場合（=CI環境と判断）のみ署名設定を適用
-            if (keystoreFile != null && keystorePass != null && keyAlias != null && keyPass != null) {
-                // ファイルパスとパスワードを設定
-                storeFile file(keystoreFile)
-                storePassword keystorePass
-                keyAlias keyAlias
-                keyPassword keyPass
-                
-                // 署名スキーム V1/V2 を強制的に有効化し、古いAndroidバージョンと新しいAndroidバージョン両方に対応させる
-                v1SigningEnabled true
-                v2SigningEnabled true
-            } else {
-                // ローカルビルドや環境変数が設定されていない場合にコンソールに出力
-                println "WARNING: CI environment variables for release signing were not found. Building unsigned APK."
-            }
-        }
-    }
-    // ------------------------------------------------------------------
+    // 💡 Debugビルドを使用するため、signingConfigsブロック全体を削除
 
     buildTypes {
         release {
             // Minify/難読化設定
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            
-            // 💡 署名設定をリリースビルドタイプに適用
-            signingConfig signingConfigs.release
+
+            // 💡 Debugビルドではデフォルトの署名が使われるため、ここでの署名設定は不要
         }
     }
-
+    
+    // Java/Kotlinのターゲットバージョンは11を維持し、広く使われている環境に合わせます
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = '17'
+        jvmTarget = '11'
     }
 }
 
@@ -76,10 +49,11 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0' 
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // BiometricPrompt
-    implementation 'androidx.biometric:biometric:1.1.0' 
+    // BiometricPrompt - 生体認証と安全なキー管理に使用
+    // バージョンは最新安定版付近の 1.2.0-alpha05 を維持
+    implementation 'androidx.biometric:biometric:1.2.0-alpha05' 
 
-    // OkHttp
+    // OkHttp - Gemini APIへの通信に使用
     implementation 'com.squareup.okhttp3:okhttp:4.12.0' 
 
     // Test dependencies
