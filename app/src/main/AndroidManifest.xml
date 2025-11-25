@@ -9,9 +9,14 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
+        
+        <!-- 【重要修正】存在が確認された ic_launcher を使用 -->
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        
+        <!-- ic_launcher_round が存在しないため、ic_launcher にフォールバックさせる -->
         android:roundIcon="@mipmap/ic_launcher"
+        
         android:supportsRtl="true"
         android:theme="@style/Theme.Liefantidia"
         tools:targetApi="31">
