@@ -18,39 +18,35 @@ jobs:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 2. SDKツール実行用にJDK 17をセットアップ
-      - name: 2. Android SDK Tool実行のためのJDK 17を一時的にセットアップ
+      # 2. Android SDK ToolおよびGradleビルド実行のためのJDK 17をセットアップ
+      # これをビルド全体で使用します。
+      - name: 2. JDK 17をセットアップ (SDK Tool および Gradle ビルド用)
         uses: actions/setup-java@v4
         with:
           java-version: '17' 
           distribution: 'temurin'
+          # Gradleキャッシュを有効化（Step 4を削除したため、ここで有効化）
+          cache: gradle
 
       # 3. Android SDK のセットアップ (API 34)
       - name: 3. Android SDK のインストールとライセンス同意
         uses: android-actions/setup-android@v3
         with:
-          # 【修正点】パッケージリストを単一行のスペース区切りに修正
+          # パッケージリストは単一行のスペース区切りで正しく修正済み
           packages: 'platforms;android-34 build-tools;34.0.0'
-        # このステップは、Step 2で設定されたJDK 17環境で実行されます
 
-      # 4. アプリビルド用にJDK 11に戻す
-      - name: 4. Gradleビルド用のJDK 11をセットアップし、キャッシュを有効化
-        uses: actions/setup-java@v4
-        with:
-          java-version: '11' 
-          distribution: 'temurin'
-          cache: gradle
+      # --- 【削除】 JDK 11への切り替えステップはAGPの要件により不要なため削除 ---
 
-      - name: 5. gradlew に実行権限を付与
+      - name: 4. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 6. デバッグAPKのビルド (assembleDebug)
-        # このステップは、Step 4で設定されたJDK 11環境で実行されます
+      - name: 5. デバッグAPKのビルド (assembleDebug)
+        # このステップは、Step 2で設定されたJDK 17環境で実行されます
         run: |
           echo "署名なしでデバッグビルドを実行します。"
           ./gradlew clean assembleDebug --no-daemon --stacktrace
 
-      - name: 7. 成果物 (APKファイル) のアップロード
+      - name: 6. 成果物 (APKファイル) のアップロード
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
