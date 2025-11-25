@@ -4,20 +4,20 @@
     <style name="Base.Theme.AIRecipeApp" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/md_theme_light_primary</item>
         <item name="colorOnPrimary">@color/md_theme_light_onPrimary</item>
-        
+
         <item name="colorSecondary">@color/md_theme_light_secondary</item>
         <item name="colorOnSecondary">@color/md_theme_light_onSecondary</item>
-        
+
         <item name="android:colorBackground">@color/md_theme_light_background</item>
         <item name="colorOnBackground">@color/md_theme_light_onBackground</item>
 
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimary</item>
-        
+
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Theme.AIRecipeApp" parent="Base.Theme.AIRecipeApp" />
-    
+
     <style name="Theme.AIRecipeApp.ActionBar" parent="Base.Theme.AIRecipeApp">
         <item name="windowActionBar">true</item>
         <item name="windowNoTitle">false</item>
