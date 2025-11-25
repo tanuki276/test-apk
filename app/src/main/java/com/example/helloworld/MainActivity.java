@@ -2,6 +2,7 @@ package com.example.liefantidia2;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.security.keystore.KeyPermanentlyInvalidatedException;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -48,9 +49,10 @@ public class MainActivity extends AppCompatActivity {
     // APIキー関連
     private String apiKey = null; // 復号化されたAPIキーを保持
     private KeyStoreHelper keyStoreHelper;
-    private PreferencesHelper preferencesHelper; // PreferencesHelperを追加
+    private PreferencesHelper preferencesHelper;
+    private boolean isBiometricPromptShowing = false; // 二重表示防止フラグ
 
-    // APIクライアント (このクラスは提供されていませんが、呼び出しはそのまま残します)
+    // APIクライアント
     private GeminiApiClient apiClient;
 
     @Override
@@ -58,11 +60,16 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ヘルパークラスとAPIクライアントの初期化
-        keyStoreHelper = new KeyStoreHelper(this);
-        preferencesHelper = new PreferencesHelper(this); // PreferencesHelperの初期化
-        // GeminiApiClientのインスタンス生成 (このクラスが提供されていると仮定)
-        apiClient = new GeminiApiClient(); 
+        // ヘルパークラスとAPIクライアントの初期化 (Contextを渡す)
+        try {
+            keyStoreHelper = new KeyStoreHelper(this);
+        } catch (RuntimeException e) {
+            Log.e(TAG, "KeyStoreHelper initialization failed: " + e.getMessage());
+            Toast.makeText(this, "セキュリティシステム初期化エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            // 以降の処理を続行するために、ここではキャッチのみ
+        }
+        preferencesHelper = new PreferencesHelper(this);
+        apiClient = new GeminiApiClient();
 
         // UIコンポーネントの初期化
         ingredientInput = findViewById(R.id.edit_text_ingredients);
@@ -146,11 +153,27 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // 1. KeyStoreのキーエイリアスが存在し、かつSharedPreferencesに暗号化データがあるか確認
+        checkAndLoadApiKey();
+    }
+
+    /**
+     * APIキーの存在チェックとロード処理の開始
+     */
+    private void checkAndLoadApiKey() {
+        if (keyStoreHelper == null) {
+            recipeOutputText.setText("セキュリティシステムが初期化されていません。アプリを再起動するか、設定を確認してください。");
+            generateRecipeButton.setEnabled(false);
+            return;
+        }
+
         boolean keyAliasExist = keyStoreHelper.isKeyAliasExist();
         boolean encryptedDataExist = preferencesHelper.hasEncryptedKey();
 
-        if (apiKey == null && keyAliasExist && encryptedDataExist) {
+        if (apiKey != null) {
+             // 既にキーがロードされ、認証済みの場合
+             generateRecipeButton.setEnabled(true);
+             recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。");
+        } else if (keyAliasExist && encryptedDataExist && !isBiometricPromptShowing) {
              // キーデータが存在するが認証されていない場合 -> 認証プロセスへ
              loadApiKey();
         } else if (!keyAliasExist || !encryptedDataExist) {
@@ -158,19 +181,16 @@ public class MainActivity extends AppCompatActivity {
              apiKey = null;
              generateRecipeButton.setEnabled(false);
              recipeOutputText.setText("APIキーが設定されていません。設定画面から設定してください。");
-        } else if (apiKey != null) {
-             // 既にキーがロードされ、認証済みの場合
-             generateRecipeButton.setEnabled(true);
-             recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。"); // 仮のメッセージ
         }
+        // isBiometricPromptShowing == true の場合は何もしない (BiometricPromptが動作中)
     }
-
 
     /**
      * APIキーを安全なストレージからロードし、必要に応じて生体認証を要求する
      */
     private void loadApiKey() {
-        // 認証中に複数回loadApiKeyが呼ばれるのを防ぐために、まずボタンを無効化
+        // 認証中に複数回loadApiKeyが呼ばれるのを防ぐためにフラグを設定
+        isBiometricPromptShowing = true;
         generateRecipeButton.setEnabled(false);
 
         try {
@@ -182,6 +202,7 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Error loading API Key components: " + e.getMessage());
             Toast.makeText(this, "セキュリティ設定エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
             generateRecipeButton.setEnabled(false);
+            isBiometricPromptShowing = false;
         }
     }
 
@@ -198,9 +219,10 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
+                    isBiometricPromptShowing = false; // 認証完了
                     try {
                         EncryptedData encryptedData = preferencesHelper.getEncryptedData();
-                        
+
                         if (encryptedData == null) {
                              throw new Exception("Encrypted data not found.");
                         }
@@ -212,10 +234,18 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, "API Key successfully decrypted and loaded.");
                         Toast.makeText(MainActivity.this, "APIキーの認証に成功しました", Toast.LENGTH_SHORT).show();
                         generateRecipeButton.setEnabled(true);
+                        recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。");
+                    } catch (KeyPermanentlyInvalidatedException e) {
+                        Log.e(TAG, "Key permanently invalidated: " + e.getMessage());
+                        Toast.makeText(getApplicationContext(), "セキュリティキーが無効化されました。設定画面からキーを再入力してください。", Toast.LENGTH_LONG).show();
+                        keyStoreHelper.deleteKeyAlias(); // KeyStoreのキーも削除
+                        preferencesHelper.deleteEncryptedKey();
+                        apiKey = null;
+                        checkAndLoadApiKey(); // UI更新と設定画面誘導
                     } catch (Exception e) {
                         Log.e(TAG, "Decryption failed: " + e.getMessage());
                         // 復号化失敗時
-                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。再認証してください。", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.this, "キーの復号化に失敗しました。設定を確認してください。", Toast.LENGTH_LONG).show();
                         generateRecipeButton.setEnabled(false);
                         apiKey = null;
                     }
@@ -224,6 +254,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
+                    isBiometricPromptShowing = false; // 認証完了
                     Toast.makeText(MainActivity.this, "認証失敗", Toast.LENGTH_SHORT).show();
                     generateRecipeButton.setEnabled(false);
                 }
@@ -231,6 +262,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
+                    isBiometricPromptShowing = false; // 認証完了
                     Log.w(TAG, "Authentication error: " + errString);
                     Toast.makeText(MainActivity.this, "認証エラー: " + errString, Toast.LENGTH_LONG).show();
                     generateRecipeButton.setEnabled(false);
@@ -264,7 +296,7 @@ public class MainActivity extends AppCompatActivity {
         if (apiKey == null || apiKey.isEmpty()) {
             Toast.makeText(this, "APIキーがロードされていません。生体認証が必要です。", Toast.LENGTH_LONG).show();
             // 再度認証プロセスを開始
-            loadApiKey();
+            checkAndLoadApiKey();
             return;
         }
 
@@ -357,7 +389,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    
+
     // BiometricPropertiesクラスは、必要な認証方式を定義するために使用されます。
     // 外部ファイルがないため、内部クラスとして定義します。
     private static class BiometricProperties {
