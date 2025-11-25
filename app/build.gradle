@@ -1,6 +1,6 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android' // Kotlinプラグインを使用
+    id 'org.jetbrains.kotlin.android' // JavaプロジェクトでもこのIDは必要
 }
 
 android {
@@ -25,8 +25,14 @@ android {
     }
 
     compileOptions {
+        // Java 17互換性
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    // Kotlinコンパイルオプション（Javaコードのコンパイルには影響なし）
+    kotlinOptions {
+        jvmTarget = '17'
     }
 }
 
@@ -43,8 +49,9 @@ dependencies {
     // 必須: OkHttp (API通信に使用)
     implementation 'com.squareup.okhttp3:okhttp:4.11.0' 
     
-    // Kotlin Standard Library (Gradle設定で指定)
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${ext.kotlin_version}"
+    // Kotlin Standard Library (バージョンはKGPに任せる)
+    // 【修正点】ext.kotlin_version への参照を削除
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8" 
     
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
