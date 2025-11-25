@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android' // Kotlinプラグインを使用
 }
 
 android {
@@ -36,13 +37,15 @@ dependencies {
     implementation 'com.google.android.material:material:1.10.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // 🚨 必須追加: BiometricPrompt ライブラリ
+    // 必須: BiometricPrompt (キー認証に使用)
     implementation 'androidx.biometric:biometric:1.1.0' 
 
-    // APIクライアントで使用するために、HTTPクライアントも追加しておく
+    // 必須: OkHttp (API通信に使用)
     implementation 'com.squareup.okhttp3:okhttp:4.11.0' 
     
-    // Test dependencies
+    // Kotlin Standard Library (Gradle設定で指定)
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${ext.kotlin_version}"
+    
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
