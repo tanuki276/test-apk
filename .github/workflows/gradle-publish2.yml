@@ -11,14 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # ----------------------------------------------------
-    # 🚨 最終修正: グローバル env で ANDROID_HOME のみ設定 🚨
-    # PATH の結合は run: ブロック内で行う
-    # ----------------------------------------------------
     env:
       # ANDROID_HOME を設定し、GradleがSDKの場所を特定できるようにする
       ANDROID_HOME: ${{ github.workspace }}/.android-sdk
-      # 注: PATH の設定は YAML の構文エラーを避けるため、run: ブロック内で実行する
 
     steps:
       - name: 1. リポジトリのチェックアウト
@@ -42,12 +37,9 @@ jobs:
       - name: 5. リリースAPKのビルド (assembleRelease)
         run: |
           # シェル内で ANDROID SDK のパスを既存の PATH に追加
-          # これにより、Gradleが正しくAndroidコマンドを見つけられるようになる
           export PATH="${{ github.workspace }}/.android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/.android-sdk/platform-tools:${{ github.workspace }}/.android-sdk/tools:$PATH"
           
           # Gradleの実行
-          # --no-daemon: デーモンによる破損セッション情報の保持を無効化
-          # -Dgradle.parallel=false: タスクの並列実行を無効化
           ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace
 
       # ----------------------------------------------------
