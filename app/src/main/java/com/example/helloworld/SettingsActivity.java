@@ -42,11 +42,12 @@ public class SettingsActivity extends AppCompatActivity {
         } catch (RuntimeException e) {
             Log.e(TAG, "KeyStoreHelper initialization failed: " + e.getMessage());
             Toast.makeText(this, "セキュリティシステム初期化エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            // 初期化失敗時はhelperをnullにして以降の処理をガード
+            keyStoreHelper = null;
         }
         preferencesHelper = new PreferencesHelper(this);
 
         apiKeyInput = findViewById(R.id.edit_text_api_key);
-        // ID修正 (activity_settings.xmlと一致させる)
         saveButton = findViewById(R.id.button_save_key);
         keySavedPlaceholder = findViewById(R.id.text_key_saved_placeholder);
 
@@ -90,7 +91,10 @@ public class SettingsActivity extends AppCompatActivity {
         } catch (KeyPermanentlyInvalidatedException e) {
             Log.e(TAG, "Key permanently invalidated: " + e.getMessage());
             Toast.makeText(this, "生体認証情報が変更されました。キーを再作成します。", Toast.LENGTH_LONG).show();
-            keyStoreHelper.deleteKeyAlias();
+            // クリーンアップ
+            if (keyStoreHelper != null) {
+                keyStoreHelper.deleteKeyAlias();
+            }
             preferencesHelper.deleteEncryptedKey();
             updateUiForSavedKey();
         } catch (Exception e) {
@@ -100,12 +104,14 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     // 復号化のために生体認証を要求する
-    // 修正点: 引数にEncryptedDataを追加し、そこからIVを取得するように変更
     private void promptBiometricForDecryption(EncryptedData encryptedData) {
         Executor executor = ContextCompat.getMainExecutor(this);
 
         if (keyStoreHelper == null || !keyStoreHelper.isKeyAliasExist()) {
             Toast.makeText(this, "セキュリティキーが利用できません。", Toast.LENGTH_LONG).show();
+            // 認証不可なので、保存データも削除して再入力を促す
+            preferencesHelper.deleteEncryptedKey();
+            updateUiForSavedKey();
             return;
         }
 
@@ -146,7 +152,9 @@ public class SettingsActivity extends AppCompatActivity {
                     } catch (KeyPermanentlyInvalidatedException e) {
                         Log.e(TAG, "Key permanently invalidated: " + e.getMessage());
                         Toast.makeText(getApplicationContext(), "セキュリティキーが無効化されました。キーを再入力してください。", Toast.LENGTH_LONG).show();
-                        keyStoreHelper.deleteKeyAlias();
+                        if (keyStoreHelper != null) {
+                            keyStoreHelper.deleteKeyAlias();
+                        }
                         preferencesHelper.deleteEncryptedKey();
                         updateUiForSavedKey();
                     } catch (Exception e) {
@@ -180,6 +188,9 @@ public class SettingsActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Failed to get Cipher for CryptoObject: " + e.getMessage());
             Toast.makeText(this, "キー認証システムの準備に失敗しました。", Toast.LENGTH_LONG).show();
+            // 認証プロセス開始前のエラーもデータを削除
+            preferencesHelper.deleteEncryptedKey();
+            updateUiForSavedKey();
         }
     }
 
@@ -192,6 +203,7 @@ public class SettingsActivity extends AppCompatActivity {
             saveButton.setOnClickListener(v -> {
                 // 再設定ボタンが押されたら暗号化データを削除し、入力フィールドを表示
                 preferencesHelper.deleteEncryptedKey();
+                // KeyStoreのキーは保持する（頻繁な再生成を防ぐため）
                 updateUiForSavedKey();
             });
         } else {
