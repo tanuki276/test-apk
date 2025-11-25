@@ -1,18 +1,15 @@
-name: APK Java ビルド (署名検証機能付き)
+name: APK Java デバッグビルド
 
 on:
-  release:
-    types: [created]
   push:
     branches: [ main, master ]
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     env:
-      # setup-androidアクションが適切に設定するため、この行は残しておきます。
       ANDROID_HOME: ${{ github.workspace }}/.android-sdk
 
     steps:
@@ -24,121 +21,28 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Gradleキャッシュを有効化
           cache: gradle
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 4. Gradleシステムキャッシュを強制削除
+      - name: 4. Gradleシステムキャッシュを削除（オプション）
         run: rm -rf ~/.gradle/caches
 
-      # ----------------------------------------------------
-      # 4.1. Android SDKのセットアップとコンポーネントインストール
-      # ----------------------------------------------------
-      - name: 4.1. Android SDKのセットアップとコンポーネントインストール
+      - name: 5. Android SDK のセットアップ
         uses: android-actions/setup-android@v3
         with:
-          # プロジェクトの app/build.gradle の compileSdk (android-33) に合わせる
           sdk-version: '33'
-          # プロジェクトの buildToolsVersion (33.0.2) に合わせる
           build-tools: '33.0.2'
-          # ライセンス承諾もこのアクション内で自動的に処理されます。
 
-      # ----------------------------------------------------
-      # 4.5. キーストアファイルを復元し署名環境変数を設定 (CRITICAL STEP)
-      # ----------------------------------------------------
-      - name: 4.5. キーストアファイルを復元し署名環境変数を設定
-        id: setup_signing
+      - name: 6. デバッグAPKのビルド
         run: |
-          echo "--- 署名ファイルと環境変数の設定を開始 ---"
+          echo "署名なしでデバッグビルド (assembleDebug) を実行します。"
+          ./gradlew clean assembleDebug --no-daemon -Dgradle.parallel=false --stacktrace
 
-          # Shell内でシークレットが存在するかチェック
-          KEY_BASE64="${{ secrets.SIGNING_KEY_BASE64 }}"
-          if [ -z "$KEY_BASE64" ]; then
-            echo "secrets.SIGNING_KEY_BASE64 が設定されていないため、署名設定をスキップします。"
-            # 次のステップに署名がスキップされたことを伝達
-            echo "SIGNED=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "キーストアシークレットを検出しました。デコードを続行します。"
-          
-          # 1. Base64データをデコードし、プロジェクトルートにファイルとして保存
-          echo "$KEY_BASE64" | base64 --decode > release.keystore
-          
-          # 2. 環境変数を設定 (後のステップで ${{ env.VARIABLE }} として利用される)
-          echo "SIGNING_KEY_FILE=$(pwd)/release.keystore" >> $GITHUB_ENV
-          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-          
-          # 次のステップに署名が設定されたことを伝達
-          echo "SIGNED=true" >> $GITHUB_OUTPUT
-          
-          echo "--- 署名環境変数を $GITHUB_ENV に設定完了 ---"
-
-      # ----------------------------------------------------
-      # 5. リリースAPKのビルド (assembleRelease) - 署名あり/なしで分離
-      # ----------------------------------------------------
-      
-      # 5.1. 署名プロパティがある場合: 署名付きビルドを実行
-      # ステップ4.5でSIGNED=trueが設定された場合に実行される
-      - name: 5.1. 署名付きリリースAPKをビルド
-        if: ${{ steps.setup_signing.outputs.SIGNED == 'true' }}
-        run: |
-          echo "署名プロパティを検出。署名付きビルドを実行します。"
-          # Gradle Project Propertyとして署名情報を明示的に渡す
-          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace \
-            -Pandroid.injected.signing.store.file=${{ env.SIGNING_KEY_FILE }} \
-            -Pandroid.injected.signing.store.password=${{ env.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ env.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ env.KEY_PASSWORD }}
-
-      # 5.1.1. 【検証】署名が成功したかチェック
-      - name: 5.1.1. 【検証】生成されたAPKの署名情報をチェック
-        if: ${{ steps.setup_signing.outputs.SIGNED == 'true' }}
-        run: |
-          # 最終的に生成されたAPKファイルのパスを取得（プロジェクト構造に依存）
-          APK_PATH=$(find app/build/outputs/apk/release -name "app-release.apk" | head -n 1)
-          
-          if [ -z "$APK_PATH" ]; then
-            echo "::error:: app-release.apk が見つかりませんでした。Gradleビルドが失敗した可能性があります。"
-            exit 1
-          fi
-          
-          echo "検証対象APKファイル: $APK_PATH"
-
-          # jarsigner で署名情報を検証
-          if jarsigner -verify -verbose -certs "$APK_PATH" | grep "signature was verified"; then
-              echo "::notice:: 🎉 【署名成功】APKファイルはキーストアによって正しく署名されています。"
-              echo "--- 署名情報の詳細 ---"
-              jarsigner -verify -certs -verbose "$APK_PATH" | head -n 10
-          else
-              echo "::error:: ❌ 【署名失敗】APKは生成されましたが、署名情報の検証に失敗しました。"
-              echo "考えられる原因："
-              echo "  1. Gradleが署名キーを見つけられなかった (storeFile, password, aliasのいずれか間違い)"
-              echo "  2. キーストアまたは証明書が破損している"
-              exit 1 # ビルドを失敗させる
-          fi
-
-
-      # 5.2. 署名プロパティがない場合: 未署名ビルドを**強制**実行
-      # ステップ4.5でSIGNED=falseが設定された場合に実行される
-      - name: 5.2. 未署名リリースAPKを強制ビルド
-        if: ${{ steps.setup_signing.outputs.SIGNED == 'false' }}
-        run: |
-          echo "署名プロパティがないため、未署名ビルド (assembleRelease) を実行します。"
-          # 未署名ビルドを強制するために 'signingConfig=debug' をインジェクト
-          ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace \
-            -Pandroid.injected.signing.config=debug
-
-      # ----------------------------------------------------
-      # 6. 成果物のアップロード (署名済み/未署名にかかわらずアップロード)
-      # ----------------------------------------------------
-      - name: 6. リリースAPKの成果物をアップロード
+      - name: 7. 成果物のアップロード
         uses: actions/upload-artifact@v4
         with:
-          name: liefantidia-apk
-          path: app/build/outputs/apk/release/
+          name: debug-apk
+          path: app/build/outputs/apk/debug/
           retention-days: 7
