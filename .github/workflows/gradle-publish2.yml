@@ -20,8 +20,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # 🚨 最終対策: GitHub ActionsのGradleキャッシュ機能を完全に無効化
-          cache: 'none' 
+          # 🚨 修正済み: cacheパラメータを削除し、エラーを回避
 
       - name: 3. gradlew に実行権限を付与
         run: chmod +x ./gradlew
@@ -34,12 +33,10 @@ jobs:
       # 🚨 最終回避策: ビルドタスクの実行 (競合防止)
       # ----------------------------------------------------
       - name: 4. リリースAPKのビルド (assembleRelease)
-        # --no-daemon と -Dgradle.parallel=false を使用
         run: ./gradlew clean assembleRelease --no-daemon -Dgradle.parallel=false --stacktrace --info
 
       # ----------------------------------------------------
       # 成果物のアップロード
-      # ----------------------------------------------------
       - name: 5. リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
