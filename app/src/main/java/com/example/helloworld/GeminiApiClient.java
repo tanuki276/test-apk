@@ -20,7 +20,7 @@ public class GeminiApiClient {
     private static final String TAG = "GeminiApiClient";
     private static final String API_URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    
+
     private final OkHttpClient client;
 
     public GeminiApiClient() {
@@ -43,7 +43,7 @@ public class GeminiApiClient {
 
         try {
             String jsonBody = buildJsonBody(prompt);
-            
+
             RequestBody body = RequestBody.create(jsonBody, JSON);
             Request request = new Request.Builder()
                     .url(url)
@@ -101,32 +101,33 @@ public class GeminiApiClient {
     private String buildJsonBody(String prompt) throws JSONException {
         JSONObject content = new JSONObject();
         content.put("role", "user");
-        
+
         JSONObject textPart = new JSONObject();
         textPart.put("text", prompt);
-        
+
         JSONArray parts = new JSONArray();
         parts.put(textPart);
-        
+
         JSONArray contents = new JSONArray();
         JSONObject contentObject = new JSONObject();
         contentObject.put("role", "user");
         contentObject.put("parts", parts);
         contents.put(contentObject);
-        
-        JSONObject config = new JSONObject();
-        config.put("temperature", 0.9); 
-        
+
+        // 【修正点】: "config"を"generationConfig"に修正
+        JSONObject generationConfig = new JSONObject();
+        generationConfig.put("temperature", 0.9); 
+
         JSONObject json = new JSONObject();
         json.put("contents", contents);
-        json.put("config", config);
-        
+        json.put("generationConfig", generationConfig); // キー名を修正
+
         return json.toString();
     }
 
     private String parseRecipeFromResponse(String responseBody) throws JSONException {
         JSONObject json = new JSONObject(responseBody);
-        
+
         if (json.has("candidates")) {
             JSONArray candidates = json.getJSONArray("candidates");
             if (candidates.length() > 0) {
@@ -141,7 +142,7 @@ public class GeminiApiClient {
         }
         return "AIからのレスポンスが空でした。";
     }
-    
+
     private String parseApiError(String errorBody) {
         try {
             JSONObject json = new JSONObject(errorBody);
