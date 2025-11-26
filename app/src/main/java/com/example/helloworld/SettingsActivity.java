@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.liefantidia2.PreferencesHelper.EncryptedData;
 
+import java.security.InvalidAlgorithmParameterException;
 import java.util.concurrent.Executor;
 
 import javax.crypto.Cipher;
@@ -39,8 +40,15 @@ public class SettingsActivity extends AppCompatActivity {
         try {
             keyStoreHelper = new KeyStoreHelper(this);
         } catch (RuntimeException e) {
-            Log.e(TAG, "KeyStoreHelper initialization failed: " + e.getMessage());
-            Toast.makeText(this, "セキュリティシステム初期化エラー: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e(TAG, "KeyStoreHelper initialization failed: " + Log.getStackTraceString(e));
+            
+            // 👈 発生源Aのトーストメッセージを改善（ユーザーフレンドリーに）
+            String userMessage = "セキュリティシステム初期化エラーが発生しました。端末を再起動してください。";
+            if (e.getCause() instanceof InvalidAlgorithmParameterException) {
+                 userMessage = "エラー: 画面ロック（PIN/パスワード）と指紋認証が設定されているか確認してください。";
+            }
+            
+            Toast.makeText(this, userMessage, Toast.LENGTH_LONG).show();
             keyStoreHelper = null;
         }
         preferencesHelper = new PreferencesHelper(this);
@@ -127,8 +135,9 @@ public class SettingsActivity extends AppCompatActivity {
                 @Override
                 public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
+                    // 認証エラー時はデータ削除せず、ユーザーの再試行を許可するほうが親切な場合が多い
                     Toast.makeText(getApplicationContext(), "認証エラー: " + errString, Toast.LENGTH_SHORT).show();
-                    preferencesHelper.deleteEncryptedKey();
+                    // preferencesHelper.deleteEncryptedKey(); // 👈 削除をコメントアウト（再試行可能に）
                     updateUiForSavedKey();
                 }
 
@@ -139,8 +148,9 @@ public class SettingsActivity extends AppCompatActivity {
                         Cipher authenticatedCipher = result.getCryptoObject().getCipher();
                         String decryptedKey = keyStoreHelper.decryptData(encryptedData, authenticatedCipher);
 
+                        // KeyStoreHelperの修正により、メッセージもSession-basedに合わせる
                         if (decryptedKey != null && !decryptedKey.isEmpty()) {
-                            Toast.makeText(getApplicationContext(), "APIキーが正常に保存され、認証されました。（1時間再認証不要）", Toast.LENGTH_LONG).show();
+                            Toast.makeText(getApplicationContext(), "APIキーが正常に保存され、認証されました。（セッション中再認証不要）", Toast.LENGTH_LONG).show();
                             updateUiForSavedKey();
                             finish(); 
                         } else {
@@ -167,23 +177,26 @@ public class SettingsActivity extends AppCompatActivity {
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
-                    Toast.makeText(getApplicationContext(), "認証失敗。APIキーを使用できません。", Toast.LENGTH_SHORT).show();
-                    preferencesHelper.deleteEncryptedKey();
+                    // 認証失敗時はデータ削除せず、ユーザーの再試行を許可するほうが親切な場合が多い
+                    Toast.makeText(getApplicationContext(), "認証失敗。再試行してください。", Toast.LENGTH_SHORT).show();
+                    // preferencesHelper.deleteEncryptedKey(); // 👈 削除をコメントアウト（再試行可能に）
                     updateUiForSavedKey();
                 }
             });
 
+            // 👈 BiometricPromptにNegativeButtonTextを追加 (BIOMETRIC_STRONG使用時の必須要件)
             BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                     .setTitle("APIキーの保存と認証")
-                    .setSubtitle("指紋認証またはPINでキーの利用を許可してください")
+                    .setSubtitle("指紋認証でキーの利用を許可してください")
                     .setAllowedAuthenticators(BiometricProperties.REQUIRED_AUTHENTICATORS)
+                    .setNegativeButtonText("キャンセル") // 👈 必須設定の追加
                     .build();
 
             biometricPrompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
 
         } catch (Exception e) {
-            Log.e(TAG, "Failed to get Cipher for CryptoObject: " + e.getMessage());
-            // これが最後の画像のエラーを引き起こす可能性が高い
+            Log.e(TAG, "Failed to get Cipher for CryptoObject: " + Log.getStackTraceString(e));
+            // 発生源Bのトーストメッセージ
             Toast.makeText(this, "キー認証システムの準備に失敗しました。", Toast.LENGTH_LONG).show();
             preferencesHelper.deleteEncryptedKey();
             updateUiForSavedKey();
@@ -198,6 +211,10 @@ public class SettingsActivity extends AppCompatActivity {
             saveButton.setText("APIキーを再設定する");
             saveButton.setOnClickListener(v -> {
                 preferencesHelper.deleteEncryptedKey();
+                // deleteKeyAliasも実行することで、確実に鍵をリセット
+                if (keyStoreHelper != null) {
+                    keyStoreHelper.deleteKeyAlias();
+                }
                 updateUiForSavedKey();
             });
         } else {
@@ -210,8 +227,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private static class BiometricProperties {
-        // 【修正適用済み】
-        // Negative textエラーを回避するため、BIOMETRIC_STRONG のみを使用
+        // BIOMETRIC_STRONG (指紋などの生体認証のみ) を使用
         public static final int REQUIRED_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG;
     }
 }
