@@ -6,11 +6,16 @@ import android.util.Base64;
 import android.util.Log;
 
 /**
- * SharedPreferencesを使用して、暗号化されたAPIキーとIV (Initialization Vector) を永続化するヘルパークラス。
+ * SharedPreferencesを使用して、APIキー（平文または暗号化データ）を永続化するヘルパークラス。
  */
 public class PreferencesHelper {
     private static final String TAG = "PreferencesHelper";
-    private static final String PREFS_NAME = "EncryptedApiPrefs";
+    private static final String PREFS_NAME = "ApiPrefs"; // プレファレンス名変更
+    
+    // 平文キー用
+    private static final String KEY_PLAIN_DATA = "plain_api_key";
+    
+    // 暗号化キー用（以前のコードから維持）
     private static final String KEY_ENCRYPTED_DATA = "encrypted_api_key";
     private static final String KEY_IV = "initialization_vector";
 
@@ -19,6 +24,40 @@ public class PreferencesHelper {
     public PreferencesHelper(Context context) {
         sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
+
+    // --- 🔑 平文キー用メソッド (新規追加) ---
+
+    public void savePlainKey(String plainKey) {
+        sharedPreferences.edit()
+            .putString(KEY_PLAIN_DATA, plainKey)
+            .apply();
+        Log.i(TAG, "Plain API key saved successfully.");
+        // クリーンアップ：暗号化キーが残っていれば削除
+        deleteEncryptedKey();
+    }
+
+    public String getPlainKey() {
+        return sharedPreferences.getString(KEY_PLAIN_DATA, null);
+    }
+
+    public boolean hasSavedKey() {
+        // 平文キー、または既存の暗号化キーが存在すればtrue
+        return sharedPreferences.contains(KEY_PLAIN_DATA) || hasEncryptedKey();
+    }
+    
+    public void deleteAllKeys() {
+        sharedPreferences.edit()
+            .remove(KEY_PLAIN_DATA)
+            .remove(KEY_ENCRYPTED_DATA)
+            .remove(KEY_IV)
+            .apply();
+        Log.w(TAG, "All API keys deleted from preferences.");
+    }
+
+    // --- 🔒 暗号化キー用メソッド (既存コード維持) ---
+
+    // 暗号化関連のメソッドは、コードの整合性のため削除せず残します。
+    // ただし、SettingsActivityとMainActivityからは呼び出されません。
 
     public void saveEncryptedData(EncryptedData encryptedData) {
         if (encryptedData == null || encryptedData.getEncryptedBytes() == null || encryptedData.getIv() == null) {
@@ -71,9 +110,6 @@ public class PreferencesHelper {
         return sharedPreferences.contains(KEY_ENCRYPTED_DATA) && sharedPreferences.contains(KEY_IV);
     }
 
-    /**
-     * 暗号文とそのIVを保持するためのデータ構造。
-     */
     public static class EncryptedData {
         private final byte[] encryptedBytes;
         private final byte[] iv;
