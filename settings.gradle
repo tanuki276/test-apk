@@ -1,3 +1,11 @@
+// settings.gradle は、プロジェクトの構造を定義し、リポジトリやプラグインの管理設定を格納します。
+
+rootProject.name = "test-apk"
+include ':app'
+
+// --- build.gradle から移動 ---
+
+// プラグインの依存関係を解決するためのリポジトリ設定
 pluginManagement {
     repositories {
         gradlePluginPortal() 
@@ -6,6 +14,7 @@ pluginManagement {
     }
 }
 
+// プロジェクトの依存関係を解決するためのリポジトリ設定
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -13,6 +22,3 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
-rootProject.name = "test-apk"
-include ':app'
