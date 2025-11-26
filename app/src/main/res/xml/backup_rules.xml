@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- SharedPreferencesに重要なデータ（APIキー、レシピ履歴）があるため、バックアップ対象とします。 -->
+    <include domain="sharedprefs" path="."/>
+    <!-- データベースやファイルなどの他のドメインは、必要に応じて追加してください -->
+</full-backup-content>
