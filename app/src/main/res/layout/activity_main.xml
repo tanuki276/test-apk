@@ -15,6 +15,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- ヘッダーエリア (タイトル、履歴ボタン、設定ボタン) -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -30,6 +31,19 @@
                 android:textColor="#333333"
                 android:layout_centerVertical="true"/>
 
+            <!-- 1. 履歴ボタン (右端に配置) -->
+            <Button
+                android:id="@+id/button_history"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/button_history"
+                android:backgroundTint="#4CAF50"
+                android:textColor="@android:color/white"
+                android:layout_alignParentEnd="true"
+                android:minHeight="0dp"
+                android:minWidth="0dp"/>
+
+            <!-- 2. 設定ボタン (履歴ボタンの左隣に配置) -->
             <Button
                 android:id="@+id/button_settings"
                 android:layout_width="wrap_content"
@@ -37,7 +51,8 @@
                 android:text="@string/button_settings"
                 android:backgroundTint="#FF9800"
                 android:textColor="@android:color/white"
-                android:layout_alignParentEnd="true"
+                android:layout_toStartOf="@id/button_history"
+                android:layout_marginEnd="8dp"
                 android:minHeight="0dp"
                 android:minWidth="0dp"/>
         </RelativeLayout>
@@ -151,7 +166,7 @@
                 android:background="@drawable/rounded_edittext_bg"
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
-        
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -219,7 +234,7 @@
                     android:layout_marginTop="8dp"/>
             </LinearLayout>
         </LinearLayout>
-        
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -289,7 +304,7 @@
                     android:layout_marginTop="8dp"/>
             </LinearLayout>
         </LinearLayout>
-        
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -340,6 +355,7 @@
             android:textColor="#333333"
             android:layout_marginBottom="8dp"/>
 
+        <!-- レシピ出力エリア -->
         <TextView
             android:id="@+id/text_view_recipe_output"
             android:layout_width="match_parent"
