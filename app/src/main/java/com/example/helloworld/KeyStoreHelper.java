@@ -36,7 +36,7 @@ public class KeyStoreHelper {
                                                + KeyProperties.BLOCK_MODE_GCM + "/"
                                                + KeyProperties.ENCRYPTION_PADDING_NONE;
     private static final int GCM_TAG_LENGTH = 128;
-    // 認証の有効期限 (秒): 1時間 = 3600秒
+    // 認証の有効期限 (秒): 1時間 = 3600秒 (互換性問題回避のため、鍵生成時に使用しない)
     private static final int AUTH_VALIDITY_SECONDS = 3600; 
 
     private final KeyStore keyStore;
@@ -52,7 +52,8 @@ public class KeyStoreHelper {
             }
         } catch (Exception e) {
             Log.e(TAG, "KeyStore initialization failed: " + e.getMessage());
-            throw new RuntimeException("KeyStore初期化エラー", e);
+            // キー生成失敗の根本原因を伝えるRuntimeExceptionを再スロー
+            throw new RuntimeException("KeyStore初期化エラー", e); 
         }
     }
 
@@ -61,6 +62,7 @@ public class KeyStoreHelper {
         try {
             return (SecretKey) keyStore.getKey(KEY_ALIAS, null);
         } catch (KeyStoreException e) {
+            // 認証変更による永続的な無効化を検出
             if (e.getMessage() != null && e.getMessage().contains("Key user not authenticated")) {
                 throw new KeyPermanentlyInvalidatedException("Key permanently invalidated due to authentication change.", e);
             }
@@ -70,6 +72,7 @@ public class KeyStoreHelper {
 
     /**
      * 鍵生成パラメータを緩和し、互換性の問題を解消します。
+     * AUTH_VALIDITY_SECONDSを削除し、鍵生成の互換性を向上させます。
      */
     private void generateNewKey() throws KeyStoreException, CertificateException, IOException,
                                  NoSuchAlgorithmException, NoSuchProviderException,
@@ -82,15 +85,15 @@ public class KeyStoreHelper {
                 KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                // setRandomizedEncryptionRequired(true) を削除し、互換性を向上
                 .setKeySize(256)
+                // 認証必須とするが、有効期限は設定しないことで互換性を向上
                 .setUserAuthenticationRequired(true)
-                .setUserAuthenticationValidityDurationSeconds(AUTH_VALIDITY_SECONDS)
+                // .setUserAuthenticationValidityDurationSeconds(AUTH_VALIDITY_SECONDS) // 👈 コメントアウト
                 .build();
 
         keyGenerator.init(keyGenParameterSpec);
         keyGenerator.generateKey();
-        Log.i(TAG, "New User-Focused Biometric Key (Validity: 1 hour) generated successfully.");
+        Log.i(TAG, "New User-Focused Biometric Key (Session-based) generated successfully.");
     }
 
     public PreferencesHelper.EncryptedData encryptData(String plainText)
@@ -111,7 +114,7 @@ public class KeyStoreHelper {
         byte[] dataToEncrypt = plainText.getBytes(StandardCharsets.UTF_8);
         byte[] encryptedBytes = cipher.doFinal(dataToEncrypt);
         byte[] iv = cipher.getIV();
-        
+
         if (iv == null) {
              throw new RuntimeException("Encryption failed: Initialization Vector (IV) is null.");
         }
@@ -153,7 +156,7 @@ public class KeyStoreHelper {
             if (keyStore.containsAlias(KEY_ALIAS)) {
                 keyStore.deleteEntry(KEY_ALIAS);
                 Log.w(TAG, "Key alias deleted: " + KEY_ALIAS);
-                generateNewKey(); 
+                // キー削除後の即時再生成は不要なため、ここでは generateNewKey() を削除しても良い
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to delete key alias: " + e.getMessage());
