@@ -18,20 +18,18 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.AuthCredential;
-// import com.google.firebase.auth.AuthCredentialProvider; // ★ 削除: このクラスは存在しない
+// import com.google.firebase.auth.AuthCredentialProvider; // この行は削除済み (コメント化)
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    // UIコンポーネント
+    // UIコンポーネント (nullチェックを行うため、定義は必須)
     private EditText ingredientInput;
     private EditText minPriceInput;
     private EditText maxPriceInput;
@@ -69,47 +67,59 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        Log.d(TAG, "onCreate: Activity started.");
+        
+        // 1. レイアウトを設定
         setContentView(R.layout.activity_main);
 
-        // Firebase初期化 (既にどこかで実行されているはずだが、念のため)
+        // 2. UI初期化（最優先）とアダプターのロード
+        initializeUI();
+        loadSpinnerAdapters();
+
+        // 3. イベントリスナーの設定 (null チェックを付けて防御的に)
+        if (settingsButton != null) settingsButton.setOnClickListener(v -> openSettings());
+        if (generateRecipeButton != null) generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
+        if (cameraButton != null) cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
+        if (historyButton != null) historyButton.setOnClickListener(v -> openHistory()); 
+
+        // 4. Firebase初期化と認証処理を開始
         try {
-            FirebaseApp.initializeApp(this);
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                 FirebaseApp.initializeApp(this);
+                 Log.d(TAG, "FirebaseApp initialized.");
+            }
             auth = FirebaseAuth.getInstance();
-        } catch (IllegalStateException e) {
-             Log.w(TAG, "FirebaseApp already initialized.");
-             auth = FirebaseAuth.getInstance();
+        } catch (Exception e) {
+             Log.e(TAG, "FATAL: Firebase initialization failed.", e);
         }
 
         preferencesHelper = new PreferencesHelper(this);
         apiClient = new GeminiApiClient();
-
+        
         // 認証処理を開始
         initializeFirebaseAuth();
-
-        // UI初期化
-        initializeUI();
-        loadSpinnerAdapters();
-
-        // イベントリスナーの設定
-        settingsButton.setOnClickListener(v -> openSettings());
-        generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
-        cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
-        historyButton.setOnClickListener(v -> openHistory()); 
-
-        generateRecipeButton.setEnabled(false);
+        
+        // 初期状態では無効化
+        if (generateRecipeButton != null) {
+            generateRecipeButton.setEnabled(false);
+        }
+        
+        Log.d(TAG, "onCreate: Activity setup complete.");
     }
 
     private void initializeFirebaseAuth() {
-        // NOTE: Canvas環境では __initial_auth_token が渡されることを想定
-        // しかし、Androidではそのトークンは利用できないため、匿名認証にフォールバックします。
-
         // 1. 認証状態の変化を監視
         auth.addAuthStateListener(firebaseAuth -> {
             FirebaseUser user = firebaseAuth.getCurrentUser();
             if (user != null) {
                 Log.i(TAG, "User authenticated: " + user.getUid());
                 isAuthInitialized.set(true);
-                historyManager = new HistoryManager(this); // 認証後に初期化
+                // 認証後に HistoryManager を初期化 (二重初期化防止のチェックを追加)
+                if (historyManager == null) {
+                    historyManager = new HistoryManager(this); 
+                    Log.d(TAG, "HistoryManager initialized after auth.");
+                }
                 // APIキーのチェックを再実行してボタンを有効にする
                 checkAndLoadApiKey(); 
             } else {
@@ -118,18 +128,23 @@ public class MainActivity extends AppCompatActivity {
                  auth.signInAnonymously().addOnCompleteListener(this, task -> {
                      if (task.isSuccessful()) {
                          Log.d(TAG, "signInAnonymously:success");
-                         // onAuthStateChangedが呼ばれ、isAuthInitializedがtrueになる
+                         // onAuthStateChangedが呼ばれるため、ここで isAuthInitialized はセットしない
                      } else {
                          Log.e(TAG, "signInAnonymously:failure", task.getException());
-                         Toast.makeText(MainActivity.this, "匿名認証に失敗しました。", Toast.LENGTH_LONG).show();
-                         isAuthInitialized.set(true); // 失敗してもUI処理を進めるためtrueに
+                         // 匿名認証に失敗した場合でも、UIクラッシュを防ぐため isAuthInitialized を true に
+                         isAuthInitialized.set(true); 
+                         Toast.makeText(MainActivity.this, "匿名認証に失敗しました。履歴機能は利用できません。", Toast.LENGTH_LONG).show();
+                         checkAndLoadApiKey(); // 認証失敗でもAPIキーはチェックする
                      }
                  });
             }
         });
     }
 
+
     private void initializeUI() {
+        // すべての findViewById 呼び出しで null チェックは不要だが、
+        // 取得した変数がnullでないかを確認するログは残しておく (デバッグ用)
         ingredientInput = findViewById(R.id.edit_text_ingredients);
         minPriceInput = findViewById(R.id.edit_text_min_price);
         maxPriceInput = findViewById(R.id.edit_text_max_price);
@@ -137,17 +152,16 @@ public class MainActivity extends AppCompatActivity {
         settingsButton = findViewById(R.id.button_settings);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
-        loadingIndicator.setVisibility(View.GONE);
+        
+        if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
+        
         cameraButton = findViewById(R.id.button_camera);
-
-        // 履歴ボタン
         historyButton = findViewById(R.id.button_history);
 
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
         spinnerGenre = findViewById(R.id.spinner_genre);
         spinnerTime = findViewById(R.id.spinner_time);
         spinnerDiet = findViewById(R.id.spinner_diet);
-
         useAllIngredientsCheckbox = findViewById(R.id.checkbox_use_all_ingredients);
         spinnerType = findViewById(R.id.spinner_type);
 
@@ -156,8 +170,9 @@ public class MainActivity extends AppCompatActivity {
         editOptionalTime = findViewById(R.id.edit_optional_time);
         editOptionalDiet = findViewById(R.id.edit_optional_diet);
         editOptionalType = findViewById(R.id.edit_optional_type);
-
         editInstructions = findViewById(R.id.edit_instructions);
+        
+        Log.d(TAG, "initializeUI: UI components initialization complete.");
     }
 
     private void loadSpinnerAdapters() {
@@ -166,12 +181,22 @@ public class MainActivity extends AppCompatActivity {
         Spinner[] spinners = {spinnerDifficulty, spinnerGenre, spinnerTime, spinnerDiet, spinnerType};
 
         for (int i = 0; i < arrayIds.length; i++) {
-            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
-                    this,
-                    arrayIds[i],
-                    android.R.layout.simple_spinner_item);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinners[i].setAdapter(adapter);
+            // Spinnerがnullでないかチェック（XMLのID間違い対策）
+            if (spinners[i] == null) {
+                Log.e(TAG, "loadSpinnerAdapters: Spinner at index " + i + " is null. Skipping adapter loading.");
+                continue; 
+            }
+            
+            try {
+                ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
+                        this,
+                        arrayIds[i],
+                        android.R.layout.simple_spinner_item);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinners[i].setAdapter(adapter);
+            } catch (Exception e) {
+                Log.e(TAG, "FATAL: Resource loading failed for spinner at index " + i, e);
+            }
         }
     }
 
@@ -180,8 +205,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openHistory() {
-        if (!isAuthInitialized.get() || auth.getCurrentUser() == null) {
-            Toast.makeText(this, "認証処理中です。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
+        if (!isAuthInitialized.get() || auth.getCurrentUser() == null || historyManager == null) {
+            Toast.makeText(this, "認証処理中、または履歴機能が初期化できていません。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
             return;
         }
         Intent intent = new Intent(this, HistoryActivity.class);
@@ -191,6 +216,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        
+        // HistoryManagerの防御的初期化 (authリスナーが失敗した場合に備えて)
+        if (auth != null && auth.getCurrentUser() != null && historyManager == null) {
+            historyManager = new HistoryManager(this);
+            Log.d(TAG, "HistoryManager re-initialized in onResume.");
+        }
+        
         checkAndLoadApiKey();
 
         // HistoryActivityから戻ってきた際のIntent処理
@@ -208,23 +240,36 @@ public class MainActivity extends AppCompatActivity {
      * HistoryActivityから戻ってきたIntentを処理し、UIを更新する
      */
     private void handleHistoryIntent(Intent intent) {
-        RecipeHistory item = (RecipeHistory) intent.getSerializableExtra("RECIPE_HISTORY_ITEM");
-        if (item != null) {
-            // レシピ本文をセット
-            recipeOutputText.setText(item.getRecipeContent());
+        try {
+            RecipeHistory item = (RecipeHistory) intent.getSerializableExtra("RECIPE_HISTORY_ITEM");
+            if (item != null) {
+                // UIコンポーネントのnullチェックは必須
+                if (recipeOutputText != null) {
+                    recipeOutputText.setText(item.getRecipeContent());
+                }
 
-            // 入力情報をUIに反映 (完全に復元するのは複雑なので、一旦食材とメッセージのみ)
-            ingredientInput.setText(item.getIngredientsWithUsage().split(" \\(")[0]);
+                if (ingredientInput != null) {
+                    ingredientInput.setText(item.getIngredientsWithUsage().split(" \\(")[0]);
+                }
 
-            Toast.makeText(this, "履歴からレシピ「" + item.getRecipeTitle() + "」を再表示しました。", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "履歴からレシピ「" + item.getRecipeTitle() + "」を再表示しました。", Toast.LENGTH_LONG).show();
 
-            // Intentからデータを削除して、次回Resume/NewIntentで再度読み込まれないようにする
-            intent.removeExtra("RECIPE_HISTORY_ITEM");
+                // Intentからデータを削除して、次回Resume/NewIntentで再度読み込まれないようにする
+                intent.removeExtra("RECIPE_HISTORY_ITEM");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error handling history intent.", e);
         }
     }
 
 
     private void checkAndLoadApiKey() {
+        // UIコンポーネントの null チェック (最低限、ボタンとテキストフィールドは必要)
+        if (generateRecipeButton == null || recipeOutputText == null) {
+             Log.e(TAG, "checkAndLoadApiKey: UI components are null. Cannot proceed.");
+             return;
+        }
+        
         if (!isAuthInitialized.get()) {
             // 認証が完了するまで待機
             return;
@@ -259,6 +304,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startRecipeGeneration() {
+        // UIコンポーネントの null チェック
+        if (generateRecipeButton == null || loadingIndicator == null || recipeOutputText == null || ingredientInput == null) {
+             Log.e(TAG, "startRecipeGeneration: UI components are null. Cannot proceed.");
+             Toast.makeText(this, "アプリの初期化に失敗しています。", Toast.LENGTH_LONG).show();
+             return;
+        }
+        
         if (apiKey == null || apiKey.isEmpty()) {
              Toast.makeText(this, "APIキーが設定されていません。設定画面から設定してください。", Toast.LENGTH_LONG).show();
              return;
@@ -273,6 +325,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void continueRecipeGeneration() {
+        // null チェック
+        if (ingredientInput == null || minPriceInput == null || maxPriceInput == null || 
+            spinnerDifficulty == null || spinnerGenre == null || spinnerTime == null || 
+            spinnerDiet == null || spinnerType == null || editOptionalDifficulty == null || 
+            editOptionalGenre == null || editOptionalTime == null || editOptionalDiet == null || 
+            editOptionalType == null || editInstructions == null || useAllIngredientsCheckbox == null) {
+            
+            Log.e(TAG, "continueRecipeGeneration: One or more critical UI components are null.");
+            Toast.makeText(this, "レシピ生成に必要なUIコンポーネントが初期化されていません。開発者にご連絡ください。", Toast.LENGTH_LONG).show();
+            return;
+        }
+        
         // --- 1. 入力値の取得とバリデーション ---
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
@@ -346,18 +410,22 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onResult(String result) {
-                runOnUiThread(() -> recipeOutputText.setText(result));
+                runOnUiThread(() -> {
+                    if (recipeOutputText != null) {
+                        recipeOutputText.setText(result);
+                    }
+                });
             }
 
             @Override
             public void onComplete() {
                 runOnUiThread(() -> {
-                    generateRecipeButton.setEnabled(true);
-                    loadingIndicator.setVisibility(View.GONE);
+                    if (generateRecipeButton != null) generateRecipeButton.setEnabled(true);
+                    if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
                     Toast.makeText(MainActivity.this, "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
 
                     // 履歴の保存
-                    String generatedRecipe = recipeOutputText.getText().toString();
+                    String generatedRecipe = recipeOutputText != null ? recipeOutputText.getText().toString() : "";
                     if (!generatedRecipe.contains("エラー") && historyManager != null) {
                          historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
                     }
@@ -367,9 +435,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(String error) {
                 runOnUiThread(() -> {
-                    generateRecipeButton.setEnabled(true);
-                    loadingIndicator.setVisibility(View.GONE);
-                    recipeOutputText.setText("エラーが発生しました:\n" + error);
+                    if (generateRecipeButton != null) generateRecipeButton.setEnabled(true);
+                    if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
+                    if (recipeOutputText != null) {
+                        recipeOutputText.setText("エラーが発生しました:\n" + error);
+                    }
                     Toast.makeText(MainActivity.this, "API呼び出しに失敗: " + error, Toast.LENGTH_LONG).show();
                 });
             }
