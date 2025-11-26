@@ -27,7 +27,6 @@ import javax.crypto.spec.GCMParameterSpec;
 
 /**
  * Android Keystoreを使用して暗号化/復号化を処理するヘルパークラス。
- * 認証の有効期間は1時間(3600秒)に設定されており、利便性を向上させています。
  */
 public class KeyStoreHelper {
     private static final String TAG = "KeyStoreHelper";
@@ -70,7 +69,7 @@ public class KeyStoreHelper {
     }
 
     /**
-     * 認証の有効期限を1時間 (3600秒) に設定して鍵を生成します。
+     * 鍵生成パラメータを緩和し、互換性の問題を解消します。
      */
     private void generateNewKey() throws KeyStoreException, CertificateException, IOException,
                                  NoSuchAlgorithmException, NoSuchProviderException,
@@ -83,10 +82,9 @@ public class KeyStoreHelper {
                 KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setRandomizedEncryptionRequired(true)
+                // setRandomizedEncryptionRequired(true) を削除し、互換性を向上
                 .setKeySize(256)
                 .setUserAuthenticationRequired(true)
-                // 1時間有効に設定
                 .setUserAuthenticationValidityDurationSeconds(AUTH_VALIDITY_SECONDS)
                 .build();
 
@@ -113,6 +111,10 @@ public class KeyStoreHelper {
         byte[] dataToEncrypt = plainText.getBytes(StandardCharsets.UTF_8);
         byte[] encryptedBytes = cipher.doFinal(dataToEncrypt);
         byte[] iv = cipher.getIV();
+        
+        if (iv == null) {
+             throw new RuntimeException("Encryption failed: Initialization Vector (IV) is null.");
+        }
 
         return new PreferencesHelper.EncryptedData(encryptedBytes, iv);
     }
