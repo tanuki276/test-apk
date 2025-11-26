@@ -28,7 +28,9 @@
         <TextView
             android:id="@+id/text_recipe_date"
             android:layout_width="match_parent"
-            android="layout_height="wrap_content"
+            <!-- 🚨 修正箇所: ここが間違っていました -->
+            <!-- 修正前: android="layout_height="wrap_content" -->
+            android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textSize="12sp"
             android:text="2025/11/26 10:00:00" />
