@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 難易度オプション -->
     <string-array name="difficulty_options">
         <item>難易度: 選択なし</item>
         <item>難易度: 初心者 (簡単)</item>
@@ -7,6 +8,7 @@
         <item>難易度: 上級者 (挑戦的)</item>
     </string-array>
 
+    <!-- ジャンルオプション -->
     <string-array name="genre_options">
         <item>ジャンル: 選択なし</item>
         <item>ジャンル: 和食</item>
@@ -16,6 +18,7 @@
         <item>ジャンル: 創作・無国籍</item>
     </string-array>
 
+    <!-- 調理時間オプション -->
     <string-array name="time_options">
         <item>調理時間: 選択なし</item>
         <item>時間制限: 15分以内 (速攻)</item>
@@ -24,11 +27,21 @@
         <item>時間制限: なし</item>
     </string-array>
 
+    <!-- 食事制限オプション -->
     <string-array name="dietary_options">
         <item>制約: 選択なし</item>
         <item>制約: ベジタリアン</item>
         <item>制約: 低カロリー・ダイエット</item>
         <item>制約: 低糖質・ケトジェニック</item>
         <item>制約: 辛さ控えめ</item>
+    </string-array>
+    
+    <!-- 主食の分類オプション -->
+    <string-array name="type_options">
+        <item>主食の分類: 特になし</item>
+        <item>主食の分類: ご飯類</item>
+        <item>主食の分類: 麺類</item>
+        <item>主食の分類: パン類</item>
+        <item>主食の分類: その他</item>
     </string-array>
 </resources>
