@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5"
+    tools:context=".HistoryActivity">
+
+    <!-- 1. ヘッダーエリア -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="16dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:background="@color/white"
+        android:elevation="4dp">
+
+        <!-- R.id.button_back: 戻るボタン -->
+        <ImageButton
+            android:id="@+id/button_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_arrow_back"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="戻る"
+            android:padding="8dp"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/history_title"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginStart="8dp"/>
+
+        <!-- R.id.button_clear_history: 全て削除ボタン (今回は個別に加えて残します) -->
+        <Button
+            android:id="@+id/button_clear_history"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/history_clear_button"
+            android:backgroundTint="#D32F2F"
+            android:textColor="@android:color/white"
+            android:minHeight="0dp"
+            android:padding="8dp"/>
+    </LinearLayout>
+
+    <!-- 2. レシピ履歴一覧 (RecyclerView) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_history"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:clipToPadding="false"
+        tools:listitem="@layout/list_item_history"/>
+
+    <!-- 3. 履歴がない場合のプレースホルダー (R.id.text_empty_history) -->
+    <TextView
+        android:id="@+id/text_empty_history"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="@string/history_empty_message"
+        android:gravity="center"
+        android:textSize="18sp"
+        android:textColor="#888888"
+        android:visibility="gone"
+        tools:visibility="visible"/>
+
+</LinearLayout>
