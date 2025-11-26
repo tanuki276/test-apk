@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "4098483634",
+    "project_id": "liefantidia2",
+    "storage_bucket": "liefantidia2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:4098483634:android:bd45822d6052ccc63db0ab",
+        "android_client_info": {
+          "package_name": "com.example.liefantidia2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGlT5oWGQIUmJQLhfINko1kHHEZlGFIhI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
