@@ -1,10 +1,6 @@
 // settings.gradle は、プロジェクトの構造を定義し、リポジトリやプラグインの管理設定を格納します。
 
-rootProject.name = "test-apk"
-include ':app'
-
-// --- build.gradle から移動 ---
-
+// 【修正】pluginManagement {} は、設定ファイルの最初のコンフィグレーションブロックである必要があります。
 // プラグインの依存関係を解決するためのリポジトリ設定
 pluginManagement {
     repositories {
@@ -22,3 +18,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+// プロジェクト構造の定義
+rootProject.name = "test-apk"
+include ':app'
