@@ -36,24 +36,18 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinnerDiet;
     
     // 👈 【新規追加コンポーネント】
-    // 具材のチェックボックス
     private CheckBox useAllIngredientsCheckbox; 
-    
-    // 主食の分類 Spinner
     private Spinner spinnerType;
-
-    // 選択式の任意入力フィールド (5つのSpinnerに対応)
     private EditText editOptionalDifficulty;
     private EditText editOptionalGenre;
     private EditText editOptionalTime;
     private EditText editOptionalDiet;
     private EditText editOptionalType; 
-
-    // 自由指示 (最重要指示)
     private EditText editInstructions; 
     
     // APIキー関連
     private String apiKey = null;
+    // KeyStoreHelperは平文保存版では使わないが、PreferencesHelperの初期化のため残す
     private KeyStoreHelper keyStoreHelper; 
     private PreferencesHelper preferencesHelper;
 
@@ -108,36 +102,33 @@ public class MainActivity extends AppCompatActivity {
         generateRecipeButton.setEnabled(false);
     }
 
-    /**
-     * SpinnerにArrayAdapterを設定 (主食分類用を追加)
-     */
     private void loadSpinnerAdapters() {
         // XMLで定義された配列リソースを使用
-        ArrayAdapter<CharSequence> adapterBase = ArrayAdapter.createFromResource(
+        ArrayAdapter<CharSequence> difficultyAdapter = ArrayAdapter.createFromResource(
                 this, 
                 R.array.difficulty_options, 
                 android.R.layout.simple_spinner_item);
-        adapterBase.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        difficultyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
-        // 既存のSpinnerの設定
-        spinnerDifficulty.setAdapter(adapterBase);
-        spinnerGenre.setAdapter(ArrayAdapter.createFromResource(this, R.array.genre_options, android.R.layout.simple_spinner_item));
-        spinnerTime.setAdapter(ArrayAdapter.createFromResource(this, R.array.time_options, android.R.layout.simple_spinner_item));
-        spinnerDiet.setAdapter(ArrayAdapter.createFromResource(this, R.array.dietary_options, android.R.layout.simple_spinner_item));
+        spinnerDifficulty.setAdapter(difficultyAdapter);
+        
+        // 他のSpinnerも同様に設定 (R.array.xxxxx_optionsはstrings.xmlで定義されている必要あり)
+        ArrayAdapter<CharSequence> genreAdapter = ArrayAdapter.createFromResource(this, R.array.genre_options, android.R.layout.simple_spinner_item);
+        genreAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerGenre.setAdapter(genreAdapter);
+
+        ArrayAdapter<CharSequence> timeAdapter = ArrayAdapter.createFromResource(this, R.array.time_options, android.R.layout.simple_spinner_item);
+        timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerTime.setAdapter(timeAdapter);
+
+        ArrayAdapter<CharSequence> dietAdapter = ArrayAdapter.createFromResource(this, R.array.dietary_options, android.R.layout.simple_spinner_item);
+        dietAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerDiet.setAdapter(dietAdapter);
         
         // 👈 【主食分類用Spinnerの追加】
-        spinnerType.setAdapter(ArrayAdapter.createFromResource(this, R.array.type_options, android.R.layout.simple_spinner_item));
-
-        // ドロップダウンビューリソースの設定 (全てのSpinnerに適用)
-        Spinner[] allSpinners = new Spinner[]{
-            spinnerDifficulty, spinnerGenre, spinnerTime, spinnerDiet, spinnerType 
-        };
-        for (Spinner spinner : allSpinners) {
-            ArrayAdapter<?> adapter = (ArrayAdapter<?>) spinner.getAdapter();
-            if (adapter != null) {
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            }
-        }
+        ArrayAdapter<CharSequence> typeAdapter = ArrayAdapter.createFromResource(this, R.array.type_options, android.R.layout.simple_spinner_item);
+        typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerType.setAdapter(typeAdapter);
     }
 
     private void showFeatureNotImplemented() {
@@ -150,18 +141,15 @@ public class MainActivity extends AppCompatActivity {
         checkAndLoadApiKey();
     }
 
-    /**
-     * APIキーの存在チェックとUI表示の更新 (平文版)。
-     */
     private void checkAndLoadApiKey() {
         String loadedKey = preferencesHelper.getPlainKey();
 
         if (loadedKey != null && !loadedKey.isEmpty()) {
              apiKey = loadedKey;
              generateRecipeButton.setEnabled(true);
-             recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！");
+             recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。");
         } else if (preferencesHelper.hasEncryptedKey()) {
-             // 既存の暗号化キーが残っている場合
+             // 旧版の暗号化キーが残っている場合、削除して警告
              preferencesHelper.deleteAllKeys();
              apiKey = null;
              generateRecipeButton.setEnabled(false);
@@ -188,9 +176,6 @@ public class MainActivity extends AppCompatActivity {
         continueRecipeGeneration();
     }
 
-    /**
-     * APIキーがロードされた後にレシピ生成を実行する
-     */
     private void continueRecipeGeneration() {
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
@@ -255,7 +240,7 @@ public class MainActivity extends AppCompatActivity {
         // 4. 自由指示 (最重要指示)
         String instructions = editInstructions.getText().toString().trim();
         if (!instructions.isEmpty()) {
-             allConstraintsBuilder.append(". 【重要】: ").append(instructions);
+             allConstraintsBuilder.append(". 【最重要指示】: ").append(instructions);
         }
         
         String allConstraints = allConstraintsBuilder.toString();
@@ -266,12 +251,10 @@ public class MainActivity extends AppCompatActivity {
         loadingIndicator.setVisibility(View.VISIBLE);
 
         // APIクライアントの呼び出し
-        // APIクライアントの引数はシンプルに、ingredientsと全ての制約を結合した文字列の2つに修正します
         apiClient.generateRecipe(apiKey, ingredientsWithUsage, allConstraints, new GeminiApiClient.RecipeCallback() {
 
             @Override
             public void onResult(String result) {
-                // UI操作はメインスレッドで行う必要がある
                 runOnUiThread(() -> recipeOutputText.setText(result));
             }
 
@@ -304,11 +287,9 @@ public class MainActivity extends AppCompatActivity {
         if (input.isEmpty()) {
             return spinnerSelection;
         }
-        // 「指定なし」や「その他（任意に入力）」の場合は、任意入力を優先する
         if (spinnerSelection.equals("指定なし") || spinnerSelection.contains("任意に入力")) { 
             return input;
         }
-        // それ以外の場合は両方を結合
         return spinnerSelection + "（または、" + input + "）";
     }
 
