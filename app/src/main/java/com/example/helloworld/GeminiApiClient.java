@@ -24,9 +24,10 @@ public class GeminiApiClient {
     private final OkHttpClient client;
 
     public GeminiApiClient() {
+        // タイムアウト値を設定
         client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS) // レシピ生成は時間がかかる場合があるのでリードタイムアウトを長く
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
     }
@@ -60,12 +61,12 @@ public class GeminiApiClient {
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    try (response) {
+                    try {
                         if (!response.isSuccessful()) {
                             String errorBody = response.body().string();
                             Log.e(TAG, "API call unsuccessful: " + response.code() + ", Body: " + errorBody);
                             callback.onFailure("APIエラー: " + response.code() + " - " + parseApiError(errorBody));
-                            return;
+                            return; // 失敗時も onComplete を呼ぶため、finallyへ移動
                         }
 
                         String responseBody = response.body().string();
@@ -75,7 +76,11 @@ public class GeminiApiClient {
                         Log.e(TAG, "Error processing API response: " + e.getMessage());
                         callback.onFailure("レスポンス処理エラー: " + e.getMessage());
                     } finally {
-                        callback.onComplete();
+                        // 成功・失敗にかかわらず、処理完了を通知
+                        callback.onComplete(); 
+                        if (response != null) {
+                            response.close();
+                        }
                     }
                 }
             });
@@ -108,19 +113,19 @@ public class GeminiApiClient {
         JSONArray parts = new JSONArray();
         parts.put(textPart);
 
-        JSONArray contents = new JSONArray();
         JSONObject contentObject = new JSONObject();
         contentObject.put("role", "user");
         contentObject.put("parts", parts);
+
+        JSONArray contents = new JSONArray();
         contents.put(contentObject);
 
-        // 【修正点】: "config"を"generationConfig"に修正
         JSONObject generationConfig = new JSONObject();
-        generationConfig.put("temperature", 0.9); 
+        generationConfig.put("temperature", 0.9);
 
         JSONObject json = new JSONObject();
         json.put("contents", contents);
-        json.put("generationConfig", generationConfig); // キー名を修正
+        json.put("generationConfig", generationConfig);
 
         return json.toString();
     }
@@ -133,10 +138,12 @@ public class GeminiApiClient {
             if (candidates.length() > 0) {
                 JSONObject candidate = candidates.getJSONObject(0);
                 JSONObject content = candidate.getJSONObject("content");
-                JSONArray parts = content.getJSONArray("parts");
-                if (parts.length() > 0) {
-                    JSONObject part = parts.getJSONObject(0);
-                    return part.getString("text");
+                if (content.has("parts")) { // partsの存在チェックを追加
+                    JSONArray parts = content.getJSONArray("parts");
+                    if (parts.length() > 0) {
+                        JSONObject part = parts.getJSONObject(0);
+                        return part.getString("text");
+                    }
                 }
             }
         }
