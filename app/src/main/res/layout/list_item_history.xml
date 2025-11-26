@@ -14,7 +14,6 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- レシピタイトル -->
         <TextView
             android:id="@+id/text_recipe_title"
             android:layout_width="match_parent"
@@ -24,18 +23,14 @@
             android:textColor="@android:color/black"
             android:text="Placeholder Recipe Title" />
 
-        <!-- 日付 -->
         <TextView
             android:id="@+id/text_recipe_date"
             android:layout_width="match_parent"
-            <!-- 🚨 修正箇所: ここが間違っていました -->
-            <!-- 修正前: android="layout_height="wrap_content" -->
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:textSize="12sp"
             android:text="2025/11/26 10:00:00" />
 
-        <!-- 材料 (抜粋など) -->
         <TextView
             android:id="@+id/text_recipe_ingredients"
             android:layout_width="match_parent"
@@ -51,7 +46,6 @@
             android:orientation="horizontal"
             android:layout_marginTop="16dp">
 
-            <!-- 詳細表示ボタン -->
             <Button
                 android:id="@+id/button_show_recipe"
                 android:layout_width="0dp"
@@ -60,7 +54,6 @@
                 android:text="表示"
                 android:layout_marginEnd="8dp" />
 
-            <!-- ダウンロードボタン -->
             <Button
                 android:id="@+id/button_download"
                 android:layout_width="0dp"
@@ -69,7 +62,6 @@
                 android:text="ダウンロード"
                 android:layout_marginEnd="8dp" />
 
-            <!-- 削除ボタン -->
             <ImageButton
                 android:id="@+id/button_delete_recipe"
                 android:layout_width="48dp"
