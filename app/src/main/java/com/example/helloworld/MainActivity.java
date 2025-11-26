@@ -8,7 +8,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.ImageButton; // ImageButtonを使用
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -22,7 +22,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.AuthCredentialProvider;
+// import com.google.firebase.auth.AuthCredentialProvider; // ★ 削除: このクラスは存在しない
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
-    private ImageButton historyButton; // 👈 履歴ボタン
+    private ImageButton historyButton; 
     private Button cameraButton;
     private ProgressBar loadingIndicator;
 
@@ -60,10 +60,10 @@ public class MainActivity extends AppCompatActivity {
     private String apiKey = null;
     private PreferencesHelper preferencesHelper;
     private GeminiApiClient apiClient;
-    
+
     // Firebase Auth/DB
     private FirebaseAuth auth;
-    private HistoryManager historyManager; // 履歴管理クラス
+    private HistoryManager historyManager; 
     private AtomicBoolean isAuthInitialized = new AtomicBoolean(false);
 
     @Override
@@ -94,15 +94,15 @@ public class MainActivity extends AppCompatActivity {
         settingsButton.setOnClickListener(v -> openSettings());
         generateRecipeButton.setOnClickListener(v -> startRecipeGeneration());
         cameraButton.setOnClickListener(v -> showFeatureNotImplemented());
-        historyButton.setOnClickListener(v -> openHistory()); // 👈 履歴ボタンのリスナー
+        historyButton.setOnClickListener(v -> openHistory()); 
 
         generateRecipeButton.setEnabled(false);
     }
-    
+
     private void initializeFirebaseAuth() {
         // NOTE: Canvas環境では __initial_auth_token が渡されることを想定
         // しかし、Androidではそのトークンは利用できないため、匿名認証にフォールバックします。
-        
+
         // 1. 認証状態の変化を監視
         auth.addAuthStateListener(firebaseAuth -> {
             FirebaseUser user = firebaseAuth.getCurrentUser();
@@ -139,8 +139,8 @@ public class MainActivity extends AppCompatActivity {
         loadingIndicator = findViewById(R.id.progress_bar_loading);
         loadingIndicator.setVisibility(View.GONE);
         cameraButton = findViewById(R.id.button_camera);
-        
-        // 👈 【履歴ボタンの初期化】
+
+        // 履歴ボタン
         historyButton = findViewById(R.id.button_history);
 
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
@@ -178,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
     private void showFeatureNotImplemented() {
         Toast.makeText(this, "カメラによる食材認識機能は開発中です。", Toast.LENGTH_SHORT).show();
     }
-    
+
     private void openHistory() {
         if (!isAuthInitialized.get() || auth.getCurrentUser() == null) {
             Toast.makeText(this, "認証処理中です。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
@@ -192,11 +192,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         checkAndLoadApiKey();
-        
+
         // HistoryActivityから戻ってきた際のIntent処理
         handleHistoryIntent(getIntent());
     }
-    
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -212,12 +212,12 @@ public class MainActivity extends AppCompatActivity {
         if (item != null) {
             // レシピ本文をセット
             recipeOutputText.setText(item.getRecipeContent());
-            
+
             // 入力情報をUIに反映 (完全に復元するのは複雑なので、一旦食材とメッセージのみ)
             ingredientInput.setText(item.getIngredientsWithUsage().split(" \\(")[0]);
-            
+
             Toast.makeText(this, "履歴からレシピ「" + item.getRecipeTitle() + "」を再表示しました。", Toast.LENGTH_LONG).show();
-            
+
             // Intentからデータを削除して、次回Resume/NewIntentで再度読み込まれないようにする
             intent.removeExtra("RECIPE_HISTORY_ITEM");
         }
@@ -229,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
             // 認証が完了するまで待機
             return;
         }
-        
+
         String loadedKey = preferencesHelper.getPlainKey();
 
         if (loadedKey != null && !loadedKey.isEmpty()) {
@@ -263,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
              Toast.makeText(this, "APIキーが設定されていません。設定画面から設定してください。", Toast.LENGTH_LONG).show();
              return;
         }
-        
+
         if (!isAuthInitialized.get() || auth.getCurrentUser() == null) {
             Toast.makeText(this, "認証処理中です。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
             return;
@@ -355,8 +355,8 @@ public class MainActivity extends AppCompatActivity {
                     generateRecipeButton.setEnabled(true);
                     loadingIndicator.setVisibility(View.GONE);
                     Toast.makeText(MainActivity.this, "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
-                    
-                    // 👈 【履歴の保存】
+
+                    // 履歴の保存
                     String generatedRecipe = recipeOutputText.getText().toString();
                     if (!generatedRecipe.contains("エラー") && historyManager != null) {
                          historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
