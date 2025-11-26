@@ -10,7 +10,7 @@ import android.util.Log;
  */
 public class PreferencesHelper {
     private static final String TAG = "PreferencesHelper";
-    private static final String PREFS_NAME = "ApiPrefs"; // プレファレンス名変更
+    private static final String PREFS_NAME = "ApiPrefs"; 
     
     // 平文キー用
     private static final String KEY_PLAIN_DATA = "plain_api_key";
@@ -25,7 +25,7 @@ public class PreferencesHelper {
         sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    // --- 🔑 平文キー用メソッド (新規追加) ---
+    // --- 🔑 平文キー用メソッド ---
 
     public void savePlainKey(String plainKey) {
         sharedPreferences.edit()
@@ -54,10 +54,7 @@ public class PreferencesHelper {
         Log.w(TAG, "All API keys deleted from preferences.");
     }
 
-    // --- 🔒 暗号化キー用メソッド (既存コード維持) ---
-
-    // 暗号化関連のメソッドは、コードの整合性のため削除せず残します。
-    // ただし、SettingsActivityとMainActivityからは呼び出されません。
+    // --- 🔒 暗号化キー用メソッド (不使用だが維持) ---
 
     public void saveEncryptedData(EncryptedData encryptedData) {
         if (encryptedData == null || encryptedData.getEncryptedBytes() == null || encryptedData.getIv() == null) {
