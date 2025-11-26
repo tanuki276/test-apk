@@ -102,7 +102,7 @@ public class SettingsActivity extends AppCompatActivity {
             Log.e(TAG, "Error during encryption/saving: " + Log.getStackTraceString(e));
             String errorMessage = e.getMessage() != null ? e.getMessage() : "原因不明のシステムエラー";
             Toast.makeText(this, "キーの暗号化に失敗しました: " + errorMessage, Toast.LENGTH_LONG).show();
-            
+
             // 暗号化エラーが発生した場合、不正なデータが保存されるのを防ぐために削除
             preferencesHelper.deleteEncryptedKey();
         }
@@ -176,6 +176,7 @@ public class SettingsActivity extends AppCompatActivity {
             BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                     .setTitle("APIキーの保存と認証")
                     .setSubtitle("指紋認証またはPINでキーの利用を許可してください")
+                    // 修正済みの BiometricProperties.REQUIRED_AUTHENTICATORS を使用
                     .setAllowedAuthenticators(BiometricProperties.REQUIRED_AUTHENTICATORS)
                     .build();
 
@@ -209,7 +210,9 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private static class BiometricProperties {
-        public static final int REQUIRED_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG |
-                BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+        // 【修正適用済み】
+        // DEVICE_CREDENTIAL を削除し、BIOMETRIC_STRONG のみを使用します。
+        // これで「Negative text must not be set...」のエラーを回避できます。
+        public static final int REQUIRED_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG;
     }
 }
