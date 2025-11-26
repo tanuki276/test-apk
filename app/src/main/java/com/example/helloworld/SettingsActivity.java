@@ -176,7 +176,6 @@ public class SettingsActivity extends AppCompatActivity {
             BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
                     .setTitle("APIキーの保存と認証")
                     .setSubtitle("指紋認証またはPINでキーの利用を許可してください")
-                    // 修正済みの BiometricProperties.REQUIRED_AUTHENTICATORS を使用
                     .setAllowedAuthenticators(BiometricProperties.REQUIRED_AUTHENTICATORS)
                     .build();
 
@@ -184,6 +183,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e(TAG, "Failed to get Cipher for CryptoObject: " + e.getMessage());
+            // これが最後の画像のエラーを引き起こす可能性が高い
             Toast.makeText(this, "キー認証システムの準備に失敗しました。", Toast.LENGTH_LONG).show();
             preferencesHelper.deleteEncryptedKey();
             updateUiForSavedKey();
@@ -211,8 +211,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private static class BiometricProperties {
         // 【修正適用済み】
-        // DEVICE_CREDENTIAL を削除し、BIOMETRIC_STRONG のみを使用します。
-        // これで「Negative text must not be set...」のエラーを回避できます。
+        // Negative textエラーを回避するため、BIOMETRIC_STRONG のみを使用
         public static final int REQUIRED_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG;
     }
 }
