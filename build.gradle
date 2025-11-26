@@ -5,9 +5,12 @@ buildscript {
     ext {
         // Kotlinのバージョンを明示的に定義
         kotlin_version = '1.9.0' 
-        
+
         // Android Gradle Plugin (AGP) のバージョンを定義
         agp_version = '8.4.2'
+        
+        // 【追加】Google Servicesプラグインのバージョンを定義
+        gms_plugin_version = '4.4.0' // 現在の安定版を使用
     }
     repositories {
         google()
@@ -18,6 +21,10 @@ buildscript {
         classpath "com.android.tools.build:gradle:$agp_version"
         // Kotlinプラグインを依存関係として定義
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        
+        // 【必須追加】Google Services プラグインのクラスパスを定義
+        // これにより、app/build.gradleでこのプラグインを使用できるようになります。
+        classpath "com.google.gms:google-services:$gms_plugin_version" 
     }
 }
 
@@ -26,3 +33,22 @@ buildscript {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+pluginManagement {
+    repositories {
+        gradlePluginPortal() 
+        google()       
+        mavenCentral()       
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "test-apk"
+include ':app'
