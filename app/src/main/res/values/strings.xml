@@ -5,7 +5,7 @@
     <string name="label_ingredients">利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）</string>
     <string name="hint_ingredients">食材をコンマ区切りで入力</string>
     
-    <string name="checkbox_use_all_ingredients">入力した具材を**全て**使用する</string>
+    <string name="checkbox_use_all_ingredients">入力した具材を全て使用する</string>
     
     <string name="button_camera_text">食材をカメラでスキャン</string> <string name="content_description_camera">食材の画像を撮影</string>
     <string name="label_settings_title">レシピ設定（難易度、ジャンル、時間、制約）</string>
@@ -16,8 +16,8 @@
     <string name="text_recipe_initial">ここに生成されたレシピがストリーミングで表示されます。</string>
     <string name="button_settings">設定</string>
 
-    <string name="label_instructions">自由指示（最優先事項）</string>
-    <string name="hint_instructions">例: 「子供向けに辛さ控えめにする」「冷蔵庫にある残り物を使う」など、AIへの具体的な指示を自由に記述してください（任意）。</string>
+    <string name="label_instructions">自由指示</string>
+    <string name="hint_instructions">具体的な指示を記載してください。</string>
 
     <string name="settings_title">APIキー設定</string>
     <string name="settings_description">Gemini/GPT APIキーを入力してください。キーは生体認証で暗号化され、安全に端末に保存されます。</string>
@@ -34,7 +34,7 @@
         <item>ご飯類</item>
         <item>麺類</item>
         <item>パン類</item>
-        <item>その他（任意に入力）</item>
+        <item>その他</item>
     </string-array>
 
     </resources>
