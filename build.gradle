@@ -9,7 +9,7 @@ buildscript {
         // Android Gradle Plugin (AGP) のバージョンを定義
         agp_version = '8.4.2'
         
-        // 【追加】Google Servicesプラグインのバージョンを定義
+        // Google Servicesプラグインのバージョンを定義
         gms_plugin_version = '4.4.0' // 現在の安定版を使用
     }
     repositories {
@@ -22,33 +22,19 @@ buildscript {
         // Kotlinプラグインを依存関係として定義
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         
-        // 【必須追加】Google Services プラグインのクラスパスを定義
-        // これにより、app/build.gradleでこのプラグインを使用できるようになります。
+        // Google Services プラグインのクラスパスを定義
         classpath "com.google.gms:google-services:$gms_plugin_version" 
     }
 }
 
 // 🚨 修正: 以前クラッシュを引き起こしていた allprojects { repositories { ... } } ブロックを削除しました。
+// 🚨 修正: Gradle 8.0+ のエラーを避けるため、pluginManagement と dependencyResolutionManagement を削除しました。
 
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-pluginManagement {
-    repositories {
-        gradlePluginPortal() 
-        google()       
-        mavenCentral()       
-    }
-}
+// NOTE: pluginManagement と dependencyResolutionManagement は settings.gradle に移動されます。
 
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.name = "test-apk"
-include ':app'
+// rootProject.name と include は settings.gradle に存在するため、ここでは不要ですが、
+// プロジェクトファイルの全体的な整合性を保つため、settings.gradleの内容も確認・修正します。
