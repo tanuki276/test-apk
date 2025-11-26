@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Button;
+import android.widget.Toast; // ★ 追加: Toastを使用できるようにする
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -49,7 +50,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
     @Override
     public void onBindViewHolder(@NonNull HistoryViewHolder holder, int position) {
         RecipeHistory item = historyList.get(position);
-        
+
         holder.titleText.setText(item.getRecipeTitle());
         holder.ingredientsText.setText(buildConstraintSummary(item));
         holder.dateText.setText(formatTimestamp(item.getTimestamp()));
@@ -67,7 +68,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
                 listener.onShowClicked(item);
             }
         });
-        
+
         // ダウンロードボタン (現在はダミー。HistoryActivityで実装予定)
         holder.downloadButton.setOnClickListener(v -> {
             Toast.makeText(context, "ダウンロード機能は実装中です。", Toast.LENGTH_SHORT).show();
@@ -78,7 +79,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
     public int getItemCount() {
         return historyList.size();
     }
-    
+
     /**
      * リストを更新してUIを再描画する
      */
@@ -101,7 +102,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
      */
     private String buildConstraintSummary(RecipeHistory item) {
         StringBuilder sb = new StringBuilder();
-        
+
         // 具材情報
         String ingredients = item.getIngredientsWithUsage();
         if (!TextUtils.isEmpty(ingredients)) {
@@ -118,13 +119,13 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
             // 自由指示（最重要指示）は長くなるので省略
             int importantIndex = constraints.indexOf("【最重要指示】");
             String displayConstraints = (importantIndex > 0) ? constraints.substring(0, importantIndex).trim() : constraints.trim();
-            
+
             if (sb.length() > 0) {
                 sb.append(" | ");
             }
             sb.append("設定: ").append(displayConstraints);
         }
-        
+
         // 長すぎる場合は省略
         String summary = sb.toString();
         if (summary.length() > 80) {
