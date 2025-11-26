@@ -8,7 +8,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.ImageButton;
+import android.widget.ImageButton; // ImageButtonは不要になったが、他の場所で使われる可能性を考慮して残す
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -19,9 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.FirebaseApp;
-import com.google.firebase.auth.AuthResult;
-import com.google.firebase.auth.AuthCredential;
-// import com.google.firebase.auth.AuthCredentialProvider; // この行は削除済み (コメント化)
+// ... 他のFirebase import
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -29,15 +27,18 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    // UIコンポーネント (nullチェックを行うため、定義は必須)
+    // UIコンポーネント
     private EditText ingredientInput;
     private EditText minPriceInput;
     private EditText maxPriceInput;
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
-    private ImageButton historyButton; 
-    private Button cameraButton;
+    
+    // 【修正点】XMLに合わせてImageButtonからButtonに変更
+    private Button historyButton; 
+    private Button cameraButton; 
+
     private ProgressBar loadingIndicator;
 
     // Spinner and Optionals
@@ -117,8 +118,13 @@ public class MainActivity extends AppCompatActivity {
                 isAuthInitialized.set(true);
                 // 認証後に HistoryManager を初期化 (二重初期化防止のチェックを追加)
                 if (historyManager == null) {
-                    historyManager = new HistoryManager(this); 
-                    Log.d(TAG, "HistoryManager initialized after auth.");
+                    // 認証後のみHistoryManagerが正しく機能するようにする
+                    try {
+                         historyManager = new HistoryManager(this); 
+                         Log.d(TAG, "HistoryManager initialized after auth.");
+                    } catch (Exception e) {
+                         Log.e(TAG, "HistoryManager initialization failed.", e);
+                    }
                 }
                 // APIキーのチェックを再実行してボタンを有効にする
                 checkAndLoadApiKey(); 
@@ -128,7 +134,7 @@ public class MainActivity extends AppCompatActivity {
                  auth.signInAnonymously().addOnCompleteListener(this, task -> {
                      if (task.isSuccessful()) {
                          Log.d(TAG, "signInAnonymously:success");
-                         // onAuthStateChangedが呼ばれるため、ここで isAuthInitialized はセットしない
+                         // onAuthStateChangedが呼ばれるため、isAuthInitializedのセットはそちらに任せる
                      } else {
                          Log.e(TAG, "signInAnonymously:failure", task.getException());
                          // 匿名認証に失敗した場合でも、UIクラッシュを防ぐため isAuthInitialized を true に
@@ -143,8 +149,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void initializeUI() {
-        // すべての findViewById 呼び出しで null チェックは不要だが、
-        // 取得した変数がnullでないかを確認するログは残しておく (デバッグ用)
+        // すべてのUIコンポーネントを取得
         ingredientInput = findViewById(R.id.edit_text_ingredients);
         minPriceInput = findViewById(R.id.edit_text_min_price);
         maxPriceInput = findViewById(R.id.edit_text_max_price);
@@ -155,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
         
         if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
         
+        // 【修正点】XMLに合わせてfindViewById後の型をButtonに統一
         cameraButton = findViewById(R.id.button_camera);
         historyButton = findViewById(R.id.button_history);
 
@@ -205,7 +211,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openHistory() {
-        if (!isAuthInitialized.get() || auth.getCurrentUser() == null || historyManager == null) {
+        if (!isAuthInitialized.get() || auth == null || auth.getCurrentUser() == null || historyManager == null) {
             Toast.makeText(this, "認証処理中、または履歴機能が初期化できていません。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -219,8 +225,12 @@ public class MainActivity extends AppCompatActivity {
         
         // HistoryManagerの防御的初期化 (authリスナーが失敗した場合に備えて)
         if (auth != null && auth.getCurrentUser() != null && historyManager == null) {
-            historyManager = new HistoryManager(this);
-            Log.d(TAG, "HistoryManager re-initialized in onResume.");
+             try {
+                 historyManager = new HistoryManager(this);
+                 Log.d(TAG, "HistoryManager re-initialized in onResume.");
+             } catch (Exception e) {
+                 Log.e(TAG, "HistoryManager re-initialization failed in onResume.", e);
+             }
         }
         
         checkAndLoadApiKey();
@@ -249,7 +259,9 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (ingredientInput != null) {
-                    ingredientInput.setText(item.getIngredientsWithUsage().split(" \\(")[0]);
+                    // 食材と使用フラグを分離
+                    String ingredients = item.getIngredientsWithUsage().split(" \\(")[0];
+                    ingredientInput.setText(ingredients);
                 }
 
                 Toast.makeText(this, "履歴からレシピ「" + item.getRecipeTitle() + "」を再表示しました。", Toast.LENGTH_LONG).show();
@@ -280,9 +292,9 @@ public class MainActivity extends AppCompatActivity {
         if (loadedKey != null && !loadedKey.isEmpty()) {
              apiKey = loadedKey;
              generateRecipeButton.setEnabled(true);
-             if (recipeOutputText.getText().toString().contains("AIが考案中です")) {
+             if (recipeOutputText.getText().toString().contains("AIが考案中です") || recipeOutputText.getText().toString().contains("APIキーが設定されていません")) {
                  // ロード中にボタンが無効になっていた場合、メッセージを初期化
-                 recipeOutputText.setText(getString(R.string.app_name) + "へようこそ！食材を入力してレシピを生成しましょう。");
+                 recipeOutputText.setText(getString(R.string.text_recipe_initial));
              }
         } else if (preferencesHelper.hasEncryptedKey()) {
              // 旧版の暗号化キーが残っている場合、削除して警告
@@ -427,7 +439,9 @@ public class MainActivity extends AppCompatActivity {
                     // 履歴の保存
                     String generatedRecipe = recipeOutputText != null ? recipeOutputText.getText().toString() : "";
                     if (!generatedRecipe.contains("エラー") && historyManager != null) {
-                         historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
+                         // nullチェックはcontinueRecipeGenerationの最初で行われている
+                         String title = extractTitle(generatedRecipe);
+                         historyManager.saveRecipe(title, ingredientsWithUsage, allConstraints, generatedRecipe);
                     }
                 });
             }
@@ -446,14 +460,31 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * レシピ本文からタイトルを抽出するヘルパーメソッド
+     */
+    private String extractTitle(String recipeContent) {
+        if (recipeContent == null || recipeContent.isEmpty()) {
+            return "無題のレシピ";
+        }
+        // 最初の行をタイトルとして抽出（Markdownの#または単純な最初の行）
+        String[] lines = recipeContent.split("\n");
+        if (lines.length > 0) {
+            String title = lines[0].trim();
+            // Markdownのタイトルマークダウンを削除
+            if (title.startsWith("#")) {
+                title = title.replaceAll("^#+\\s*", "");
+            }
+            if (title.length() > 30) {
+                 return title.substring(0, 30) + "...";
+            }
+            return title.isEmpty() ? "無題のレシピ" : title;
+        }
+        return "無題のレシピ";
+    }
+
     private String combineConstraint(String spinnerSelection, String optionalInput) {
         String input = optionalInput.trim();
         if (input.isEmpty()) {
             return spinnerSelection;
-        }
-        if (spinnerSelection.contains("選択なし") || spinnerSelection.contains("特になし")) {
-            return input;
-        }
-        return spinnerSelection + " (" + input + "による詳細)";
-    }
-}
+ 
