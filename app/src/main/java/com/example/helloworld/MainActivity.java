@@ -34,8 +34,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView recipeOutputText;
     private Button generateRecipeButton;
     private Button settingsButton;
-    
-    // 【修正点】XMLに合わせてImageButtonからButtonに変更
+
+    // XMLに合わせてImageButtonからButtonに変更
     private Button historyButton; 
     private Button cameraButton; 
 
@@ -68,9 +68,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
         Log.d(TAG, "onCreate: Activity started.");
-        
+
         // 1. レイアウトを設定
         setContentView(R.layout.activity_main);
 
@@ -97,15 +97,15 @@ public class MainActivity extends AppCompatActivity {
 
         preferencesHelper = new PreferencesHelper(this);
         apiClient = new GeminiApiClient();
-        
+
         // 認証処理を開始
         initializeFirebaseAuth();
-        
+
         // 初期状態では無効化
         if (generateRecipeButton != null) {
             generateRecipeButton.setEnabled(false);
         }
-        
+
         Log.d(TAG, "onCreate: Activity setup complete.");
     }
 
@@ -157,10 +157,10 @@ public class MainActivity extends AppCompatActivity {
         settingsButton = findViewById(R.id.button_settings);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
-        
+
         if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
-        
-        // 【修正点】XMLに合わせてfindViewById後の型をButtonに統一
+
+        // XMLに合わせてfindViewById後の型をButtonに統一
         cameraButton = findViewById(R.id.button_camera);
         historyButton = findViewById(R.id.button_history);
 
@@ -177,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
         editOptionalDiet = findViewById(R.id.edit_optional_diet);
         editOptionalType = findViewById(R.id.edit_optional_type);
         editInstructions = findViewById(R.id.edit_instructions);
-        
+
         Log.d(TAG, "initializeUI: UI components initialization complete.");
     }
 
@@ -192,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.e(TAG, "loadSpinnerAdapters: Spinner at index " + i + " is null. Skipping adapter loading.");
                 continue; 
             }
-            
+
             try {
                 ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
                         this,
@@ -222,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        
+
         // HistoryManagerの防御的初期化 (authリスナーが失敗した場合に備えて)
         if (auth != null && auth.getCurrentUser() != null && historyManager == null) {
              try {
@@ -232,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
                  Log.e(TAG, "HistoryManager re-initialization failed in onResume.", e);
              }
         }
-        
+
         checkAndLoadApiKey();
 
         // HistoryActivityから戻ってきた際のIntent処理
@@ -281,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
              Log.e(TAG, "checkAndLoadApiKey: UI components are null. Cannot proceed.");
              return;
         }
-        
+
         if (!isAuthInitialized.get()) {
             // 認証が完了するまで待機
             return;
@@ -322,7 +322,7 @@ public class MainActivity extends AppCompatActivity {
              Toast.makeText(this, "アプリの初期化に失敗しています。", Toast.LENGTH_LONG).show();
              return;
         }
-        
+
         if (apiKey == null || apiKey.isEmpty()) {
              Toast.makeText(this, "APIキーが設定されていません。設定画面から設定してください。", Toast.LENGTH_LONG).show();
              return;
@@ -337,18 +337,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void continueRecipeGeneration() {
-        // null チェック
+　　　　　　        // Part1からの続き (continueRecipeGeneration メソッドの内部)
+
+        // null チェック (Part1からの再掲だが、念のため)
         if (ingredientInput == null || minPriceInput == null || maxPriceInput == null || 
             spinnerDifficulty == null || spinnerGenre == null || spinnerTime == null || 
             spinnerDiet == null || spinnerType == null || editOptionalDifficulty == null || 
             editOptionalGenre == null || editOptionalTime == null || editOptionalDiet == null || 
             editOptionalType == null || editInstructions == null || useAllIngredientsCheckbox == null) {
-            
+
             Log.e(TAG, "continueRecipeGeneration: One or more critical UI components are null.");
             Toast.makeText(this, "レシピ生成に必要なUIコンポーネントが初期化されていません。開発者にご連絡ください。", Toast.LENGTH_LONG).show();
             return;
         }
-        
+
         // --- 1. 入力値の取得とバリデーション ---
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
@@ -391,6 +393,7 @@ public class MainActivity extends AppCompatActivity {
         String ingredientUsage = mustUseAll ? " (入力された具材は全て使用してください)" : " (入力された具材は、全て使用しなくても構いません)";
         final String ingredientsWithUsage = ingredients + ingredientUsage;
 
+        // combineConstraintの修正版を使用
         String difficulty = combineConstraint(spinnerDifficulty.getSelectedItem().toString(), editOptionalDifficulty.getText().toString());
         String genre = combineConstraint(spinnerGenre.getSelectedItem().toString(), editOptionalGenre.getText().toString());
         String timeConstraint = combineConstraint(spinnerTime.getSelectedItem().toString(), editOptionalTime.getText().toString());
@@ -458,7 +461,7 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         });
-    }
+    } // <-- continueRecipeGeneration メソッドの閉じ括弧
 
     /**
      * レシピ本文からタイトルを抽出するヘルパーメソッド
@@ -483,8 +486,24 @@ public class MainActivity extends AppCompatActivity {
         return "無題のレシピ";
     }
 
+    /**
+     * スピナーの選択とオプションの自由入力を結合して制約文字列を生成する
+     */
     private String combineConstraint(String spinnerSelection, String optionalInput) {
         String input = optionalInput.trim();
-        if (input.isEmpty()) {
-            return spinnerSelection;
- 
+
+        // 1. オプション入力があり、スピナー選択肢が「選択しない」などではない場合
+        if (!input.isEmpty() && !spinnerSelection.contains("選択しない") && !spinnerSelection.contains("指定なし")) {
+            return spinnerSelection + "（" + input + "）";
+        }
+        
+        // 2. スピナー選択肢が「選択しない」などで、オプション入力のみがある場合
+        if (!input.isEmpty()) {
+            return input;
+        }
+
+        // 3. オプション入力がない場合
+        return spinnerSelection;
+    } // <-- combineConstraint メソッドの閉じ括弧
+
+} // <-- MainActivity クラスの閉じ括弧
