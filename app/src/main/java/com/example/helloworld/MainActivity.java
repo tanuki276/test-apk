@@ -337,7 +337,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void continueRecipeGeneration() {
-　　　　　　        // Part1からの続き (continueRecipeGeneration メソッドの内部)
 
         // null チェック (Part1からの再掲だが、念のため)
         if (ingredientInput == null || minPriceInput == null || maxPriceInput == null || 
