@@ -8,7 +8,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.ImageButton; // ImageButtonは不要になったが、他の場所で使われる可能性を考慮して残す
+import android.widget.ImageButton; 
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -441,9 +441,8 @@ public class MainActivity extends AppCompatActivity {
                     // 履歴の保存
                     String generatedRecipe = recipeOutputText != null ? recipeOutputText.getText().toString() : "";
                     if (!generatedRecipe.contains("エラー") && historyManager != null) {
-                         // nullチェックはcontinueRecipeGenerationの最初で行われている
-                         String title = extractTitle(generatedRecipe);
-                         historyManager.saveRecipe(title, ingredientsWithUsage, allConstraints, generatedRecipe);
+                         // *** 修正箇所: 3つの引数でsaveRecipeを呼び出す ***
+                         historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
                     }
                 });
             }
@@ -495,7 +494,7 @@ public class MainActivity extends AppCompatActivity {
         if (!input.isEmpty() && !spinnerSelection.contains("選択しない") && !spinnerSelection.contains("指定なし")) {
             return spinnerSelection + "（" + input + "）";
         }
-        
+
         // 2. スピナー選択肢が「選択しない」などで、オプション入力のみがある場合
         if (!input.isEmpty()) {
             return input;
