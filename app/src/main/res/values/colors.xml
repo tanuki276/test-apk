@@ -1,20 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 標準的なマテリアルカラー -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Theme.Material3.DayNightで参照されるプライマリカラーパレット -->
-    <!-- ライトテーマのプライマリカラー -->
-    <color name="md_theme_light_primary">#6750A4</color>
+    <!-- 高コントラストで読みやすいライト配色 -->
+    <color name="md_theme_light_primary">#315F9A</color>
     <color name="md_theme_light_onPrimary">#FFFFFF</color>
-
-    <!-- ライトテーマのセカンダリカラー -->
-    <color name="md_theme_light_secondary">#625B71</color>
+    <color name="md_theme_light_secondary">#4B5F78</color>
     <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_background">#F7F9FC</color>
+    <color name="md_theme_light_onBackground">#17191C</color>
 
-    <!-- ライトテーマの背景色 -->
-    <color name="md_theme_light_background">#FFFBFE</color>
-    <color name="md_theme_light_onBackground">#1C1B1F</color>
-
+    <color name="surface_card">#FFFFFFFF</color>
+    <color name="text_primary">#17191C</color>
+    <color name="text_secondary">#454A52</color>
 </resources>
