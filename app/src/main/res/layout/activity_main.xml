@@ -1,371 +1,402 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#F6F7FB"
     android:fillViewport="true"
-    android:background="#F5F5F5"
+    android:clipToPadding="false"
     tools:context=".MainActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:paddingStart="16dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="32dp">
 
-        <!-- ヘッダーエリア (タイトル、履歴ボタン、設定ボタン) -->
-        <RelativeLayout
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="2dp"
+            app:strokeWidth="0dp">
 
-            <TextView
-                android:id="@+id/text_app_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:textColor="#333333"
-                android:layout_centerVertical="true"/>
+                android:orientation="vertical"
+                android:padding="20dp">
 
-            <!-- 1. 履歴ボタン (右端に配置) -->
-            <Button
-                android:id="@+id/button_history"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/button_history"
-                android:backgroundTint="#4CAF50"
-                android:textColor="@android:color/white"
-                android:layout_alignParentEnd="true"
-                android:minHeight="0dp"
-                android:minWidth="0dp"/>
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-            <!-- 2. 設定ボタン (履歴ボタンの左隣に配置) -->
-            <Button
-                android:id="@+id/button_settings"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/button_settings"
-                android:backgroundTint="#FF9800"
-                android:textColor="@android:color/white"
-                android:layout_toStartOf="@id/button_history"
-                android:layout_marginEnd="8dp"
-                android:minHeight="0dp"
-                android:minWidth="0dp"/>
-        </RelativeLayout>
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:layout_toStartOf="@id/button_history">
+
+                        <TextView
+                            android:id="@+id/text_app_title"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/app_name"
+                            android:textColor="#172033"
+                            android:textSize="27sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="3dp"
+                            android:text="AIで、今日の食材からレシピを考える"
+                            android:textColor="#687386"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_alignParentEnd="true">
+
+                        <Button
+                            android:id="@+id/button_history"
+                            android:layout_width="wrap_content"
+                            android:layout_height="42dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:text="履歴"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:backgroundTint="#EEF2FF"
+                            android:textColor="#4354A8" />
+
+                        <Button
+                            android:id="@+id/button_settings"
+                            android:layout_width="wrap_content"
+                            android:layout_height="42dp"
+                            android:layout_marginStart="6dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:text="設定"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:backgroundTint="#FFF3E4"
+                            android:textColor="#A96518" />
+                    </LinearLayout>
+                </RelativeLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="材料を入力"
+            android:textColor="#172033"
+            android:textSize="19sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/label_ingredients"
-            android:textStyle="bold"
-            android:textColor="#555555"
-            android:layout_marginBottom="4dp"/>
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="10dp"
+            android:text="例：鶏むね肉、玉ねぎ、卵、キャベツ"
+            android:textColor="#788398"
+            android:textSize="13sp" />
 
-        <EditText
-            android:id="@+id/edit_text_ingredients"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/hint_ingredients"
-            android:inputType="text"
-            android:padding="12dp"
-            android:background="@drawable/rounded_edittext_bg"
-            android:layout_marginBottom="8dp"/>
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#E2E6EF"
+            app:strokeWidth="1dp">
+
+            <EditText
+                android:id="@+id/edit_text_ingredients"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="58dp"
+                android:background="@android:color/transparent"
+                android:hint="使いたい食材を入力"
+                android:inputType="textCapSentences"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textColor="#172033"
+                android:textColorHint="#9AA3B2"
+                android:textSize="16sp" />
+        </com.google.android.material.card.MaterialCardView>
 
         <CheckBox
             android:id="@+id/checkbox_use_all_ingredients"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/checkbox_use_all_ingredients"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="10dp"
+            android:text="入力した食材をできるだけすべて使う"
+            android:textColor="#3C4658"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/button_camera"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/button_camera_text"
-            android:backgroundTint="#4CAF50"
-            android:textColor="@android:color/white"
-            android:padding="12dp"
-            android:layout_marginBottom="16dp"
-            android:contentDescription="@string/content_description_camera" />
+            android:layout_height="50dp"
+            android:layout_marginBottom="18dp"
+            android:backgroundTint="#E9F7EF"
+            android:contentDescription="@string/content_description_camera"
+            android:text="食材を写真から入力"
+            android:textColor="#217A4B"
+            android:textStyle="bold" />
 
-        <TextView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/label_price_range"
-            android:textStyle="bold"
-            android:textColor="#555555"
-            android:layout_marginBottom="4dp"/>
+            android:layout_marginBottom="14dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#E2E6EF"
+            app:strokeWidth="1dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="24dp">
-            <EditText
-                android:id="@+id/edit_text_min_price"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="@string/hint_min_price"
-                android:inputType="number"
-                android:padding="12dp"
-                android:background="@drawable/rounded_edittext_bg"
-                android:layout_marginEnd="8dp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="〜"
-                android:textSize="20sp"
-                android:layout_gravity="center_vertical"
-                android:textColor="#333333"/>
-
-            <EditText
-                android:id="@+id/edit_text_max_price"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="@string/hint_max_price"
-                android:inputType="number"
-                android:padding="12dp"
-                android:background="@drawable/rounded_edittext_bg"
-                android:layout_marginStart="8dp"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginBottom="16dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="主食の分類"
-                android:textStyle="bold"
-                android:textColor="#555555"
-                android:layout_marginBottom="4dp"/>
-            <Spinner
-                android:id="@+id/spinner_type"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/rounded_spinner_bg"
-                android:entries="@array/type_options"
-                android:padding="8dp"/>
-            <EditText
-                android:id="@+id/edit_optional_type"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="予算"
+                    android:textColor="#172033"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <EditText
+                        android:id="@+id/edit_text_min_price"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/rounded_edittext_bg"
+                        android:hint="下限"
+                        android:inputType="number"
+                        android:padding="12dp"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:text="〜"
+                        android:textColor="#687386"
+                        android:textSize="18sp" />
+
+                    <EditText
+                        android:id="@+id/edit_text_max_price"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/rounded_edittext_bg"
+                        android:hint="上限"
+                        android:inputType="number"
+                        android:padding="12dp"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#E2E6EF"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="任意：主食の分類を自由に指定"
-                android:inputType="text"
-                android:padding="12dp"
-                android:background="@drawable/rounded_edittext_bg"
-                android:layout_marginTop="8dp"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:orientation="vertical"
-                android:layout_marginEnd="8dp">
+                android:padding="16dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="難易度"
-                    android:textStyle="bold"
-                    android:textColor="#555555"
-                    android:layout_marginBottom="4dp"/>
-                <Spinner
-                    android:id="@+id/spinner_difficulty"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/difficulty_options"
-                    android:padding="8dp"/>
-                <EditText
-                    android:id="@+id/edit_optional_difficulty"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="任意：難易度を自由に指定"
-                    android:inputType="text"
-                    android:padding="12dp"
-                    android:background="@drawable/rounded_edittext_bg"
-                    android:layout_marginTop="8dp"/>
-            </LinearLayout>
+                    android:text="レシピの条件"
+                    android:textColor="#172033"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ジャンル"
-                    android:textStyle="bold"
-                    android:textColor="#555555"
-                    android:layout_marginBottom="4dp"/>
-                <Spinner
-                    android:id="@+id/spinner_genre"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/genre_options"
-                    android:padding="8dp"/>
-                <EditText
-                    android:id="@+id/edit_optional_genre"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="任意：ジャンルを自由に指定"
-                    android:inputType="text"
-                    android:padding="12dp"
-                    android:background="@drawable/rounded_edittext_bg"
-                    android:layout_marginTop="8dp"/>
-            </LinearLayout>
-        </LinearLayout>
+                    android:orientation="vertical">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="主食の分類" android:textColor="#687386" android:textSize="12sp" />
+                    <Spinner android:id="@+id/spinner_type" android:layout_width="match_parent" android:layout_height="48dp" android:background="@drawable/rounded_spinner_bg" android:entries="@array/type_options" android:padding="8dp" />
+                    <EditText android:id="@+id/edit_optional_type" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="6dp" android:background="@drawable/rounded_edittext_bg" android:hint="自由指定（任意）" android:inputType="text" android:padding="12dp" android:textSize="13sp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginEnd="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="調理時間"
-                    android:textStyle="bold"
-                    android:textColor="#555555"
-                    android:layout_marginBottom="4dp"/>
-                <Spinner
-                    android:id="@+id/spinner_time"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/time_options"
-                    android:padding="8dp"/>
-                <EditText
-                    android:id="@+id/edit_optional_time"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="任意：調理時間を自由に指定"
-                    android:inputType="text"
-                    android:padding="12dp"
-                    android:background="@drawable/rounded_edittext_bg"
-                    android:layout_marginTop="8dp"/>
-            </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="難易度" android:textColor="#687386" android:textSize="12sp" />
+                            <Spinner android:id="@+id/spinner_difficulty" android:layout_width="match_parent" android:layout_height="48dp" android:background="@drawable/rounded_spinner_bg" android:entries="@array/difficulty_options" android:padding="8dp" />
+                            <EditText android:id="@+id/edit_optional_difficulty" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="6dp" android:background="@drawable/rounded_edittext_bg" android:hint="自由指定" android:inputType="text" android:padding="10dp" android:textSize="12sp" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="ジャンル" android:textColor="#687386" android:textSize="12sp" />
+                            <Spinner android:id="@+id/spinner_genre" android:layout_width="match_parent" android:layout_height="48dp" android:background="@drawable/rounded_spinner_bg" android:entries="@array/genre_options" android:padding="8dp" />
+                            <EditText android:id="@+id/edit_optional_genre" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="6dp" android:background="@drawable/rounded_edittext_bg" android:hint="自由指定" android:inputType="text" android:padding="10dp" android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:layout_marginStart="8dp">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="食事制限"
-                    android:textStyle="bold"
-                    android:textColor="#555555"
-                    android:layout_marginBottom="4dp"/>
-                <Spinner
-                    android:id="@+id/spinner_diet"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_spinner_bg"
-                    android:entries="@array/dietary_options"
-                    android:padding="8dp"/>
-                <EditText
-                    android:id="@+id/edit_optional_diet"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="任意：食事制限を自由に指定"
-                    android:inputType="text"
-                    android:padding="12dp"
-                    android:background="@drawable/rounded_edittext_bg"
-                    android:layout_marginTop="8dp"/>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="調理時間" android:textColor="#687386" android:textSize="12sp" />
+                            <Spinner android:id="@+id/spinner_time" android:layout_width="match_parent" android:layout_height="48dp" android:background="@drawable/rounded_spinner_bg" android:entries="@array/time_options" android:padding="8dp" />
+                            <EditText android:id="@+id/edit_optional_time" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="6dp" android:background="@drawable/rounded_edittext_bg" android:hint="自由指定" android:inputType="text" android:padding="10dp" android:textSize="12sp" />
+                        </LinearLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="食事制限" android:textColor="#687386" android:textSize="12sp" />
+                            <Spinner android:id="@+id/spinner_diet" android:layout_width="match_parent" android:layout_height="48dp" android:background="@drawable/rounded_spinner_bg" android:entries="@array/dietary_options" android:padding="8dp" />
+                            <EditText android:id="@+id/edit_optional_diet" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="6dp" android:background="@drawable/rounded_edittext_bg" android:hint="自由指定" android:inputType="text" android:padding="10dp" android:textSize="12sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/label_instructions"
-            android:textStyle="bold"
-            android:textColor="#333333"
-            android:layout_marginBottom="4dp"/>
+            android:layout_marginTop="2dp"
+            android:text="追加指示"
+            android:textColor="#172033"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
         <EditText
             android:id="@+id/edit_instructions"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/hint_instructions"
-            android:inputType="textMultiLine"
-            android:minLines="2"
-            android:maxLines="4"
-            android:gravity="top"
-            android:padding="12dp"
+            android:layout_height="100dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="14dp"
             android:background="@drawable/rounded_edittext_bg"
-            android:layout_marginBottom="24dp"/>
+            android:gravity="top"
+            android:hint="例：子ども向け、洗い物を少なく、辛くしない"
+            android:inputType="textMultiLine"
+            android:maxLines="5"
+            android:padding="14dp"
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/button_generate_recipe"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/button_generate_recipe"
-            android:backgroundTint="#007BFF"
+            android:layout_height="56dp"
+            android:layout_marginBottom="18dp"
+            android:backgroundTint="#4F63D9"
+            android:text="レシピを生成する"
             android:textColor="@android:color/white"
-            android:padding="16dp"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
+            android:textSize="17sp"
+            android:textStyle="bold" />
 
         <ProgressBar
             android:id="@+id/progress_bar_loading"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="14dp"
             android:visibility="gone"
-            tools:visibility="visible"
-            android:layout_marginBottom="16dp"/>
+            tools:visibility="gone" />
 
-        <TextView
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="生成されたレシピ"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="#333333"
-            android:layout_marginBottom="8dp"/>
+            android:layout_marginBottom="8dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="生成されたレシピ"
+                android:textColor="#172033"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:text="保存・共有できます"
+                android:textColor="#788398"
+                android:textSize="11sp" />
+        </RelativeLayout>
 
-        <!-- レシピ出力エリア -->
-        <TextView
-            android:id="@+id/text_view_recipe_output"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:background="@drawable/rounded_output_bg"
-            android:text="@string/text_recipe_initial"
-            android:textColor="#333333"
-            android:textSize="14sp"
-            android:minHeight="150dp"/>
+            app:cardCornerRadius="20dp"
+            app:cardElevation="1dp"
+            app:strokeColor="#E2E6EF"
+            app:strokeWidth="1dp">
+
+            <TextView
+                android:id="@+id/text_view_recipe_output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="180dp"
+                android:padding="18dp"
+                android:text="@string/text_recipe_initial"
+                android:textColor="#273044"
+                android:textSize="15sp"
+                android:lineSpacingExtra="3dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <com.example.liefantidia2.RecipeActionButton
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:tag="copy"
+                android:text="レシピをコピー"
+                android:textStyle="bold"
+                android:backgroundTint="#EEF2FF"
+                android:textColor="#4354A8" />
+
+            <com.example.liefantidia2.RecipeActionButton
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:tag="share"
+                android:text="レシピを共有"
+                android:textStyle="bold"
+                android:backgroundTint="#EAF7F0"
+                android:textColor="#217A4B" />
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
