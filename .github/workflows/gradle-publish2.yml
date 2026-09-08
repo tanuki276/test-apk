@@ -1,6 +1,5 @@
 name: APK Java デバッグビルド
 
-# ワークフローの実行トリガー
 on:
   push:
     branches: [ main, master ]
@@ -9,46 +8,38 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # JDK 17とSDKツールの互換性問題を回避するために設定を復活させる
     env:
-      SKIP_JDK_VERSION_CHECK: true 
+      SKIP_JDK_VERSION_CHECK: true
 
     steps:
       - name: 1. リポジトリのチェックアウト
         uses: actions/checkout@v4
 
-      # 2. Android SDK ToolおよびGradleビルド実行のためのJDK 17をセットアップ
-      # これをビルド全体で使用します。
-      - name: 2. JDK 17をセットアップ (SDK Tool および Gradle ビルド用)
+      - name: 2. JDK 17をセットアップ
         uses: actions/setup-java@v4
         with:
-          java-version: '17' 
+          java-version: '17'
           distribution: 'temurin'
-          # Gradleキャッシュを有効化（Step 4を削除したため、ここで有効化）
           cache: gradle
 
-      # 3. Android SDK のセットアップ (API 34)
-      - name: 3. Android SDK のインストールとライセンス同意
+      - name: 3. Android SDKのセットアップ
         uses: android-actions/setup-android@v3
         with:
-          # パッケージリストは単一行のスペース区切りで正しく修正済み
           packages: 'platforms;android-34 build-tools;34.0.0'
 
-      # --- 【削除】 JDK 11への切り替えステップはAGPの要件により不要なため削除 ---
-
-      - name: 4. gradlew に実行権限を付与
+      - name: 4. gradlewに実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 5. デバッグAPKのビルド (assembleDebug)
-        # このステップは、Step 2で設定されたJDK 17環境で実行されます
+      - name: 5. デバッグAPKのビルド
         run: |
-          echo "署名なしでデバッグビルドを実行します。"
-          ./gradlew clean assembleDebug --no-daemon --stacktrace
+          echo "デバッグAPKをビルドします。"
+          ./gradlew clean assembleDebug --no-daemon --stacktrace --max-workers=2
 
-      - name: 6. 成果物 (APKファイル) のアップロード
+      - name: 6. 成果物(APK)のアップロード
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: app/build/outputs/apk/debug/
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
           retention-days: 7
