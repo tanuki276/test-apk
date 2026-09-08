@@ -1,7 +1,7 @@
 package com.example.liefantidia2;
 
 import android.os.Bundle;
-import android.util.Log;
+import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -10,14 +10,12 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-// APIキーの設定を管理するアクティビティ (暗号化無効版)
+/** APIキー設定画面。キーはPreferencesHelper経由でAndroid Keystore暗号化保存する。 */
 public class SettingsActivity extends AppCompatActivity {
 
-    private static final String TAG = "SettingsActivity";
     private EditText apiKeyInput;
     private Button saveButton;
     private TextView keySavedPlaceholder;
-    private KeyStoreHelper keyStoreHelper; 
     private PreferencesHelper preferencesHelper;
 
     @Override
@@ -25,12 +23,15 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        keyStoreHelper = null; 
         preferencesHelper = new PreferencesHelper(this);
 
         apiKeyInput = findViewById(R.id.edit_text_api_key);
         saveButton = findViewById(R.id.button_save_key);
         keySavedPlaceholder = findViewById(R.id.text_key_saved_placeholder);
+
+        if (apiKeyInput != null) {
+            apiKeyInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        }
 
         updateUiForSavedKey();
 
@@ -38,53 +39,57 @@ public class SettingsActivity extends AppCompatActivity {
         if (backButton != null) {
             backButton.setOnClickListener(v -> finish());
         }
-
-        saveButton.setOnClickListener(v -> saveApiKey());
     }
 
-    // APIキーの保存処理 (平文保存)
     private void saveApiKey() {
-        String inputKey = apiKeyInput.getText().toString().trim();
+        String inputKey = apiKeyInput == null ? "" : apiKeyInput.getText().toString().trim();
 
         if (inputKey.isEmpty()) {
-            // R.string.toast_set_api_key を使用
             Toast.makeText(this, R.string.toast_set_api_key, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Gemini APIキーの一般的な形式を軽く検証し、明らかな入力ミスを防止。
+        if (inputKey.length() < 20 || inputKey.length() > 256) {
+            Toast.makeText(this, "APIキーの長さが不正です。キーを確認してください。", Toast.LENGTH_LONG).show();
             return;
         }
 
         try {
             preferencesHelper.savePlainKey(inputKey);
-
-            Toast.makeText(this, "APIキーが保存されました。", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "APIキーを安全に保存しました。", Toast.LENGTH_LONG).show();
             updateUiForSavedKey();
-            finish();
-
         } catch (Exception e) {
-            Log.e(TAG, "Error during saving key (Plain): " + e.getMessage());
-            Toast.makeText(this, "キーの保存に失敗しました。", Toast.LENGTH_LONG).show();
-            preferencesHelper.deleteAllKeys(); 
+            Toast.makeText(this, "APIキーの安全な保存に失敗しました。", Toast.LENGTH_LONG).show();
         }
     }
 
     private void updateUiForSavedKey() {
-        if (preferencesHelper.hasSavedKey()) { 
-            keySavedPlaceholder.setVisibility(View.VISIBLE);
-            apiKeyInput.setVisibility(View.GONE);
-            
-            // 👈 修正: R.string.button_reset_key をリテラル文字列に置き換え
-            saveButton.setText("APIキーを再設定する"); 
-            
+        boolean saved = preferencesHelper.hasSavedKey();
+
+        if (keySavedPlaceholder != null) {
+            keySavedPlaceholder.setVisibility(saved ? View.VISIBLE : View.GONE);
+        }
+
+        if (apiKeyInput != null) {
+            apiKeyInput.setVisibility(saved ? View.GONE : View.VISIBLE);
+            if (!saved) {
+                apiKeyInput.setText("");
+            }
+        }
+
+        if (saveButton == null) return;
+
+        if (saved) {
+            saveButton.setText("APIキーを削除して再設定");
             saveButton.setOnClickListener(v -> {
-                preferencesHelper.deleteAllKeys(); 
+                preferencesHelper.deleteAllKeys();
+                Toast.makeText(this, "保存済みAPIキーを削除しました。", Toast.LENGTH_SHORT).show();
                 updateUiForSavedKey();
             });
         } else {
-            keySavedPlaceholder.setVisibility(View.GONE);
-            apiKeyInput.setVisibility(View.VISIBLE);
-            // R.string.button_save_key を使用
             saveButton.setText(R.string.button_save_key);
             saveButton.setOnClickListener(v -> saveApiKey());
-            apiKeyInput.setText("");
         }
     }
 }
