@@ -64,6 +64,10 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseAuth auth;
     private HistoryManager historyManager; 
     private AtomicBoolean isAuthInitialized = new AtomicBoolean(false);
+    private FirebaseAuth.AuthStateListener authListener;
+    private boolean generating;
+    private boolean destroyed;
+    private String lastRecipe = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,19 +103,36 @@ public class MainActivity extends AppCompatActivity {
         apiClient = new GeminiApiClient();
 
         // 認証処理を開始
+        checkAndLoadApiKey();
         initializeFirebaseAuth();
-
-        // 初期状態では無効化
-        if (generateRecipeButton != null) {
-            generateRecipeButton.setEnabled(false);
+        findViewById(R.id.button_copy_recipe).setOnClickListener(v -> {
+            if (lastRecipe.isEmpty()) return;
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("CookAi レシピ", lastRecipe));
+            Toast.makeText(this, "レシピをコピーしました", Toast.LENGTH_SHORT).show();
+        });
+        findViewById(R.id.button_share_recipe).setOnClickListener(v -> {
+            if (lastRecipe.isEmpty()) return;
+            Intent share = new Intent(Intent.ACTION_SEND).setType("text/plain");
+            share.putExtra(Intent.EXTRA_TEXT, lastRecipe);
+            startActivity(Intent.createChooser(share, "レシピを共有"));
+        });
+        if (savedInstanceState != null) {
+            lastRecipe = savedInstanceState.getString("recipe", "");
+            if (!lastRecipe.isEmpty()) recipeOutputText.setText(lastRecipe);
         }
+        updateRecipeActions();
+
+
 
         Log.d(TAG, "onCreate: Activity setup complete.");
     }
 
     private void initializeFirebaseAuth() {
         // 1. 認証状態の変化を監視
-        auth.addAuthStateListener(firebaseAuth -> {
+        if (auth == null) return;
+        authListener = firebaseAuth -> {
+            if (destroyed) return;
             FirebaseUser user = firebaseAuth.getCurrentUser();
             if (user != null) {
                 Log.i(TAG, "User authenticated: " + user.getUid());
@@ -144,9 +165,28 @@ public class MainActivity extends AppCompatActivity {
                      }
                  });
             }
-        });
+        };
+        auth.addAuthStateListener(authListener);
     }
 
+    private void updateRecipeActions() {
+        findViewById(R.id.button_copy_recipe).setEnabled(!lastRecipe.isEmpty() && !generating);
+        findViewById(R.id.button_share_recipe).setEnabled(!lastRecipe.isEmpty() && !generating);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        state.putString("recipe", lastRecipe);
+        super.onSaveInstanceState(state);
+    }
+
+    @Override
+    protected void onDestroy() {
+        destroyed = true;
+        if (auth != null && authListener != null) auth.removeAuthStateListener(authListener);
+        if (apiClient != null) apiClient.cancel();
+        super.onDestroy();
+    }
 
     private void initializeUI() {
         // すべてのUIコンポーネントを取得
@@ -211,6 +251,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openHistory() {
+        if (generating) {
+            Toast.makeText(this, "レシピ生成が完了してから履歴を開いてください。", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (!isAuthInitialized.get() || auth == null || auth.getCurrentUser() == null || historyManager == null) {
             Toast.makeText(this, "認証処理中、または履歴機能が初期化できていません。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
             return;
@@ -255,7 +299,9 @@ public class MainActivity extends AppCompatActivity {
             if (item != null) {
                 // UIコンポーネントのnullチェックは必須
                 if (recipeOutputText != null) {
-                    recipeOutputText.setText(item.getRecipeContent());
+                    lastRecipe = item.getRecipeContent() == null ? "" : item.getRecipeContent();
+                    recipeOutputText.setText(lastRecipe);
+                    updateRecipeActions();
                 }
 
                 if (ingredientInput != null) {
@@ -282,10 +328,7 @@ public class MainActivity extends AppCompatActivity {
              return;
         }
 
-        if (!isAuthInitialized.get()) {
-            // 認証が完了するまで待機
-            return;
-        }
+        if (generating) return;
 
         String loadedKey = preferencesHelper.getPlainKey();
 
@@ -306,7 +349,7 @@ public class MainActivity extends AppCompatActivity {
              // キーデータが存在しない場合
              apiKey = null;
              generateRecipeButton.setEnabled(false);
-             recipeOutputText.setText("APIキーが設定されていません。設定画面から設定してください。");
+             if (lastRecipe.isEmpty()) recipeOutputText.setText("APIキーが設定されていません。設定画面から設定してください。");
         }
     }
 
@@ -328,10 +371,7 @@ public class MainActivity extends AppCompatActivity {
              return;
         }
 
-        if (!isAuthInitialized.get() || auth.getCurrentUser() == null) {
-            Toast.makeText(this, "認証処理中です。しばらくお待ちください。", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (generating) return;
 
         continueRecipeGeneration();
     }
@@ -373,7 +413,7 @@ public class MainActivity extends AppCompatActivity {
                      max = Integer.parseInt(maxPriceStr);
                 }
 
-                if (min > max) {
+                if (min < 0 || max < 0 || min > max) {
                     Toast.makeText(this, R.string.error_invalid_price_range, Toast.LENGTH_LONG).show();
                     return;
                 }
@@ -416,6 +456,8 @@ public class MainActivity extends AppCompatActivity {
         final String allConstraints = allConstraintsBuilder.toString();
 
         // --- 3. APIクライアントの呼び出し ---
+        generating = true;
+        updateRecipeActions();
         recipeOutputText.setText("レシピをAIが考案中です...");
         generateRecipeButton.setEnabled(false);
         loadingIndicator.setVisibility(View.VISIBLE);
@@ -425,7 +467,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResult(String result) {
                 runOnUiThread(() -> {
+                    if (destroyed) return;
                     if (recipeOutputText != null) {
+                        lastRecipe = result;
                         recipeOutputText.setText(result);
                     }
                 });
@@ -434,13 +478,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onComplete() {
                 runOnUiThread(() -> {
-                    if (generateRecipeButton != null) generateRecipeButton.setEnabled(true);
+                    if (destroyed) return;
+                    generating = false;
+                    updateRecipeActions();
+                    checkAndLoadApiKey();
                     if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
                     Toast.makeText(MainActivity.this, "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
 
                     // 履歴の保存
                     String generatedRecipe = recipeOutputText != null ? recipeOutputText.getText().toString() : "";
-                    if (!generatedRecipe.contains("エラー") && historyManager != null) {
+                    if (!generatedRecipe.trim().isEmpty() && historyManager != null) {
                          // *** 修正箇所: 3つの引数でsaveRecipeを呼び出す ***
                          historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
                     }
@@ -450,10 +497,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(String error) {
                 runOnUiThread(() -> {
-                    if (generateRecipeButton != null) generateRecipeButton.setEnabled(true);
+                    if (destroyed) return;
+                    generating = false;
+                    updateRecipeActions();
+                    checkAndLoadApiKey();
                     if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
                     if (recipeOutputText != null) {
-                        recipeOutputText.setText("エラーが発生しました:\n" + error);
+                        recipeOutputText.setText(lastRecipe.isEmpty() ? "エラーが発生しました:\n" + error : lastRecipe);
                     }
                     Toast.makeText(MainActivity.this, "API呼び出しに失敗: " + error, Toast.LENGTH_LONG).show();
                 });

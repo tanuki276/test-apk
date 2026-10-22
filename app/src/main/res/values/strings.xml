@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">liefantidia2</string>
+    <string name="app_name">CookAi</string>
 
     <string name="label_ingredients">利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）</string>
     <string name="hint_ingredients">食材をコンマ区切りで入力</string>
@@ -15,7 +15,7 @@
     <string name="hint_min_price">最低価格 (円)</string>
     <string name="hint_max_price">最高価格 (円)</string>
     <string name="button_generate_recipe">レシピを見る</string>
-    <string name="text_recipe_initial">ここに生成されたレシピがストリーミングで表示されます。</string>
+    <string name="text_recipe_initial">食材と条件を入力すると、ここにレシピが表示されます。</string>
     <string name="button_settings">設定</string>
     <!-- 【追加】履歴ボタンのテキスト -->
     <string name="button_history">履歴</string>
@@ -24,10 +24,10 @@
     <string name="hint_instructions">具体的な指示を記載してください。</string>
 
     <string name="settings_title">APIキー設定</string>
-    <string name="settings_description">Gemini/GPT APIキーを入力してください。キーは生体認証で暗号化され、安全に端末に保存されます。</string>
-    <string name="settings_hint_api_key">ここにAPIキー（sk-xxxx...）を入力</string>
-    <string name="button_save_key">APIキーを保存して認証する</string>
-    <string name="security_note">※保存後、キーの利用には端末の指紋認証またはPINが必要になります。</string>
+    <string name="settings_description">Google Gemini APIキーを入力してください。キーはAndroid Keystoreを使って暗号化し、端末に保存します。</string>
+    <string name="settings_hint_api_key">Gemini APIキーを入力</string>
+    <string name="button_save_key">APIキーを保存</string>
+    <string name="security_note">レシピ生成時に食材と条件をGoogle Geminiへ送信します。履歴はFirebaseに保存されます。APIの利用料金はご自身の契約に従います。</string>
     <string name="key_saved_placeholder">キーは安全に保存されています</string> 
     <string name="toast_set_api_key">APIキーを設定してください。</string>
     <string name="toast_input_ingredients">食材を入力してください。</string>

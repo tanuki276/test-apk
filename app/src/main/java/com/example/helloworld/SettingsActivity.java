@@ -50,7 +50,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         // Gemini APIキーの一般的な形式を軽く検証し、明らかな入力ミスを防止。
-        if (inputKey.length() < 20 || inputKey.length() > 256) {
+        if (inputKey.length() < 20 || inputKey.length() > 256 || inputKey.matches(".*\\s.*")) {
             Toast.makeText(this, "APIキーの長さが不正です。キーを確認してください。", Toast.LENGTH_LONG).show();
             return;
         }
@@ -58,6 +58,7 @@ public class SettingsActivity extends AppCompatActivity {
         try {
             preferencesHelper.savePlainKey(inputKey);
             Toast.makeText(this, "APIキーを安全に保存しました。", Toast.LENGTH_LONG).show();
+            apiKeyInput.setText("");
             updateUiForSavedKey();
         } catch (Exception e) {
             Toast.makeText(this, "APIキーの安全な保存に失敗しました。", Toast.LENGTH_LONG).show();
@@ -93,3 +94,4 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 }
+

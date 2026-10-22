@@ -53,7 +53,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/settings_hint_api_key"
-        android:inputType="textPassword"
+        android:inputType="textPassword" android:saveEnabled="false" android:importantForAutofill="no"
         android:padding="12dp"
         android:background="@drawable/rounded_edittext_bg"
         android:layout_marginBottom="16dp"/>

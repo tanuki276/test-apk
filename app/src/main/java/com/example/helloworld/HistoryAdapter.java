@@ -30,6 +30,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
     public interface HistoryActionListener {
         void onDeleteClicked(RecipeHistory item);
         void onShowClicked(RecipeHistory item);
+        void onDownloadClicked(RecipeHistory item);
         // ダウンロードはHistoryActivityで処理するため、ここでは不要だが将来的に追加可能
     }
 
@@ -71,7 +72,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryV
 
         // ダウンロードボタン (現在はダミー。HistoryActivityで実装予定)
         holder.downloadButton.setOnClickListener(v -> {
-            Toast.makeText(context, "ダウンロード機能は実装中です。", Toast.LENGTH_SHORT).show();
+            if (listener != null) listener.onDownloadClicked(item);
         });
     }
 
