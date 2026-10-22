@@ -3,7 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
@@ -30,7 +29,7 @@
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="APIキー設定"
+            android:label="AI接続設定"
             android:parentActivityName=".MainActivity" />
 
         <activity
