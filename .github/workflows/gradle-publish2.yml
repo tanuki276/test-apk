@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SKIP_JDK_VERSION_CHECK: true
+      AI_PROXY_URL: ${{ vars.AI_PROXY_URL }}
 
     steps:
       - name: 1. リポジトリのチェックアウト

@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText minPriceInput;
     private EditText maxPriceInput;
     private TextView recipeOutputText;
+    private TextView generationStatus;
     private Button generateRecipeButton;
     private Button settingsButton;
     private Button historyButton;
@@ -125,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
                 historyManager = null;
                 historyOwnerUid = currentUid;
                 lastRecipe = "";
+                generationStatus.setVisibility(View.GONE);
                 recipeOutputText.setText(R.string.text_recipe_initial);
                 updateRecipeActions();
             }
@@ -168,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
         copyRecipeButton = findViewById(R.id.button_copy_recipe);
         shareRecipeButton = findViewById(R.id.button_share_recipe);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
+        generationStatus = findViewById(R.id.text_generation_status);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
 
         if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
@@ -455,6 +458,7 @@ public class MainActivity extends AppCompatActivity {
         }
         final long uiRequest = ++uiGeneration;
         generationFailed = false;
+        generationStatus.setVisibility(View.GONE);
         generating = true;
         updateRecipeActions();
         updateGenerationAvailability();
@@ -482,6 +486,8 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (destroyed || uiRequest != uiGeneration) return;
                     generationFailed = true;
+                    generationStatus.setText(error);
+                    generationStatus.setVisibility(View.VISIBLE);
                     if (recipeOutputText != null) {
                         recipeOutputText.setText(lastRecipe.isEmpty()
                                 ? "エラーが発生しました:\n" + error
@@ -518,6 +524,8 @@ public class MainActivity extends AppCompatActivity {
         generationFailed = true;
         loadingIndicator.setVisibility(View.GONE);
         recipeOutputText.setText(lastRecipe.isEmpty() ? "生成を停止しました。もう一度生成できます。" : lastRecipe);
+        generationStatus.setText("生成を停止しました。もう一度生成できます。");
+        generationStatus.setVisibility(View.VISIBLE);
         updateGenerationAvailability();
         updateRecipeActions();
     }

@@ -32,18 +32,30 @@ public class AiProxyClient {
     private volatile Call activeCall;
 
     public AiProxyClient() {
+        this(BuildConfig.AI_PROXY_URL);
+    }
+
+    AiProxyClient(String configuredUrl) {
         client = new OkHttpClient.Builder()
                 .retryOnConnectionFailure(false)
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(90, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .callTimeout(90, TimeUnit.SECONDS)
                 .build();
-        proxyUrl = BuildConfig.AI_PROXY_URL == null ? "" : BuildConfig.AI_PROXY_URL.trim();
+        proxyUrl = configuredUrl == null ? "" : configuredUrl.trim();
     }
 
     public boolean isConfigured() {
-        return proxyUrl.startsWith("https://") && !proxyUrl.contains("example.workers.dev");
+        try {
+            java.net.URI endpoint = new java.net.URI(proxyUrl);
+            return "https".equals(endpoint.getScheme()) && endpoint.getHost() != null
+                    && !"example.workers.dev".equals(endpoint.getHost())
+                    && "/generate-recipe".equals(endpoint.getPath())
+                    && endpoint.getUserInfo() == null && endpoint.getQuery() == null && endpoint.getFragment() == null;
+        } catch (java.net.URISyntaxException e) { return false; }
     }
 
     public interface RecipeCallback {
@@ -161,7 +173,8 @@ public class AiProxyClient {
     }
 
     private String parseError(String responseBody, int statusCode) {
-        if (statusCode == 401 || statusCode == 403) return "認証に失敗しました。アプリを開き直してください。";
+        if (statusCode == 401) return "認証に失敗しました。アプリを開き直してください。";
+        if (statusCode == 403) return "接続できませんでした。時間をおいてもう一度お試しください。";
         if (statusCode == 429) return "利用が集中しています。少し待ってからもう一度お試しください。";
         if (statusCode >= 500) return "ただいま混み合っています。しばらくしてからもう一度お試しください。";
         if (statusCode == 400 || statusCode == 413) return "入力内容が長すぎるか、正しくありません。食材と条件を確認してください。";

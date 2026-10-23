@@ -2,7 +2,7 @@
 
 ## 実装
 - compileSdk / targetSdk 36、AGP 8.10.1、Gradle 8.11.1、JDK 17。
-- 既存1.1を巻き戻さずVersion 1.2 / versionCode 3を表示。
+- 既存1.1を巻き戻さずVersion 1.3 / versionCode 4を表示。
 - メール/パスワード登録・ログイン・ゲスト履歴引き継ぎを追加。設定からパスワード再設定、ログアウト、アカウント削除が可能。詳細は `docs/ACCOUNTS.md`。
 - カメラUI・コード・文字列、履歴全削除を撤去。
 - 停止で端末の通信をキャンセルし、古いコールバックによる表示更新・履歴保存を防ぐ。送信済みAI処理と課金が停止する保証はない。
@@ -13,7 +13,7 @@
 ## デプロイ時
 1. Firebase Authenticationでメール/パスワードを有効にする。WorkerのSecrets・FirebaseプロジェクトIDと利用するモデルの実在・利用権限を確認し `cd cloudflare-worker && npm install && npm test && npx wrangler deploy`。既存モデル名はこの変更では変更していない。
 2. `firebase deploy --only firestore:rules --project liefantidia2` を実行する。既存の本番Rulesは未取得・未確認であり、リポジトリ内のRules追加だけでは本番には適用されない。
-3. リリースビルド用にRepository Variablesの`AI_PROXY_URL`を設定する。未指定・サンプルURLではリリースビルドを拒否する。実際のWorker URLを `-PAI_PROXY_URL=https://.../generate-recipe` で指定しビルド。秘密鍵はAPKに入れない。
+3. 通常ビルドは既存の本番Worker URLを使用する。必要な場合はRepository Variablesの`AI_PROXY_URL`で上書きする。空の設定は既定URLに戻し、サンプルURL・不正なURLはすべてのビルドで拒否する。別のWorkerを使う場合はURLを `-PAI_PROXY_URL=https://.../generate-recipe` で指定しビルド。秘密鍵はAPKに入れない。
 4. `docs/PRIVACY_POLICY.md` の公開Web URLを用意。運営者名・問い合わせ窓口・保持運用が実態と一致することを確認しData Safetyを申告。
 5. ストア用AABを署名して作成。既存の署名設定・ストア登録は本変更の対象外。
 

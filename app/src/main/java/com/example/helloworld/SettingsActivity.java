@@ -88,8 +88,12 @@ public class SettingsActivity extends AppCompatActivity {
     private void renderAccount() {
         com.google.firebase.auth.FirebaseUser user = auth.getCurrentUser();
         boolean signedIn = user != null && !user.isAnonymous();
-        accountStatus.setText(signedIn ? "ログイン中: " + user.getEmail()
+        accountStatus.setText(signedIn ? "ログイン中: " + EmailMasker.mask(user.getEmail())
             : "ゲストで利用中です。登録すると、再インストール後も履歴を引き継げます。");
+        if (signedIn) {
+            emailInput.setText("");
+            passwordInput.setText("");
+        }
         credentials.setVisibility(signedIn ? android.view.View.GONE : android.view.View.VISIBLE);
         findViewById(R.id.button_logout).setVisibility(signedIn ? android.view.View.VISIBLE : android.view.View.GONE);
         findViewById(R.id.button_delete_account).setVisibility(signedIn ? android.view.View.VISIBLE : android.view.View.GONE);
