@@ -17,6 +17,8 @@ import org.junit.runner.RunWith;
 import android.content.ContentValues;
 import android.provider.MediaStore;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 import static androidx.test.espresso.Espresso.onView;
@@ -109,6 +111,14 @@ public class CookingUiTest {
             assertFalse(auth.getCurrentUser().isAnonymous());
             String code = GuestRecovery.load(ApplicationProvider.getApplicationContext(), uid);
             assertTrue(GuestRecovery.valid(code));
+            try (ActivityScenario<SettingsActivity> first = ActivityScenario.launch(SettingsActivity.class)) {
+                onView(withText("ゲストの復元コード")).check(matches(isDisplayed()));
+                onView(withText("閉じる")).perform(click());
+            }
+            try (ActivityScenario<SettingsActivity> again = ActivityScenario.launch(SettingsActivity.class)) {
+                onView(withText("ゲストの復元コード")).check(doesNotExist());
+                onView(withId(R.id.button_show_recovery)).check(matches(isDisplayed()));
+            }
             InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::logout);
             assertNull(auth.getCurrentUser());
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> controller.restoreGuest(GuestRecovery.display(code)));
@@ -118,6 +128,38 @@ public class CookingUiTest {
         } finally {
             auth.signOut();
             Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        }
+    }
+    @Test public void historySearchFiltersAndClearsAfterLoading() throws Exception {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        com.google.firebase.firestore.DocumentReference document = FirebaseFirestore.getInstance()
+            .document("artifacts/liefantidia2/users/" + uid + "/history/search-demo");
+        Map<String, Object> recipe = new HashMap<>();
+        recipe.put("recipeTitle", "検索確認カレー");
+        recipe.put("ingredientsWithUsage", "鶏肉、玉ねぎ");
+        recipe.put("allConstraints", "簡単");
+        recipe.put("recipeContent", "鶏肉を煮る");
+        recipe.put("timestamp", System.currentTimeMillis());
+        Tasks.await(document.set(recipe), 30, TimeUnit.SECONDS);
+        try (ActivityScenario<HistoryActivity> screen = ActivityScenario.launch(HistoryActivity.class)) {
+            long deadline = System.currentTimeMillis() + 30000;
+            while (true) {
+                try {
+                    onView(withText("検索確認カレー")).check(matches(isDisplayed()));
+                    break;
+                } catch (androidx.test.espresso.NoMatchingViewException | AssertionError error) {
+                    if (System.currentTimeMillis() >= deadline) throw error;
+                    Thread.sleep(100);
+                }
+            }
+            onView(withId(R.id.edit_history_search)).perform(replaceText("鶏肉"), closeSoftKeyboard());
+            onView(withText("検索確認カレー")).check(matches(isDisplayed()));
+            onView(withId(R.id.edit_history_search)).perform(replaceText("存在しない"), closeSoftKeyboard());
+            onView(withText("検索に一致する履歴がありません。")).check(matches(isDisplayed()));
+            onView(withId(R.id.button_clear_search)).perform(click());
+            onView(withText("検索確認カレー")).check(matches(isDisplayed()));
+        } finally {
+            Tasks.await(document.delete(), 30, TimeUnit.SECONDS);
         }
     }
     private void waitForAccount(AccountController controller) throws Exception {

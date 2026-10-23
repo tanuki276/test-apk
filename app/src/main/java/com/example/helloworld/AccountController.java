@@ -29,6 +29,7 @@ public final class AccountController {
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
     private final MutableLiveData<State> state = new MutableLiveData<>(new State(false, ""));
     private FirebaseApp restoreApp;
+    private String recoveryPromptUid;
     private AccountController(Context context) { this.context = context; }
     public LiveData<State> state() { return state; }
     public boolean busy() { return state.getValue() != null && state.getValue().busy; }
@@ -61,9 +62,15 @@ public final class AccountController {
             .addOnCompleteListener(task -> {
                 if (task.isSuccessful()) {
                     GuestRecovery.save(context, uid, code);
+                    recoveryPromptUid = uid;
                     finish("復元コードを発行しました。必ずコピーして安全な場所に保管してください。");
                 } else finish(error(task.getException()));
             });
+    }
+    public boolean consumeRecoveryPrompt(String uid) {
+        if (uid == null || !uid.equals(recoveryPromptUid)) return false;
+        recoveryPromptUid = null;
+        return true;
     }
     public void restoreGuest(String input) {
         if (!GuestRecovery.valid(input)) {

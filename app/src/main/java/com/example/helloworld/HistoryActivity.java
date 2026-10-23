@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,6 +32,9 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
     private RecyclerView recyclerView;
     private HistoryAdapter adapter;
     private TextView emptyHistoryText;
+    private EditText searchInput;
+    private List<RecipeHistory> allHistory = new ArrayList<>();
+    private boolean loadFailed;
 
     // Firestore関連
     private FirebaseFirestore db;
@@ -70,6 +74,7 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
 
         recyclerView = findViewById(R.id.recycler_view_history);
         emptyHistoryText = findViewById(R.id.text_empty_history);
+        searchInput = findViewById(R.id.edit_history_search);
         ImageButton backButton = findViewById(R.id.button_back);
 
         db = FirebaseFirestore.getInstance();
@@ -89,6 +94,12 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
         );
 
         setupRecyclerView();
+        searchInput.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence text, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence text, int start, int before, int count) { renderHistory(); }
+            @Override public void afterTextChanged(android.text.Editable text) {}
+        });
+        findViewById(R.id.button_clear_search).setOnClickListener(v -> searchInput.setText(""));
 
         backButton.setOnClickListener(v -> finish());
 
@@ -115,11 +126,16 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
                         history.setId(document.getId());
                         historyList.add(history);
                     }
-                    updateUi(historyList);
+                    allHistory = historyList;
+                    loadFailed = false;
+                    renderHistory();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error loading history: ", e);
                     Toast.makeText(this, "履歴の読み込みに失敗しました。", Toast.LENGTH_SHORT).show();
+                    loadFailed = true;
+                    adapter.updateList(new ArrayList<>());
+                    recyclerView.setVisibility(View.GONE);
                     emptyHistoryText.setText("履歴を読み込めませんでした。タップして再試行");
                     emptyHistoryText.setVisibility(View.VISIBLE);
                     emptyHistoryText.setOnClickListener(v -> loadHistory());
@@ -129,17 +145,20 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
     /**
      * 履歴リストに基づいてUI（RecyclerViewと空メッセージ）を更新
      */
-    private void updateUi(List<RecipeHistory> historyList) {
-        emptyHistoryText.setText(R.string.history_empty_message);
+    private void renderHistory() {
+        if (loadFailed) return;
+        List<RecipeHistory> visible = HistorySearch.filter(allHistory, searchInput.getText().toString());
+        emptyHistoryText.setText(allHistory.isEmpty() ? getString(R.string.history_empty_message)
+            : "検索に一致する履歴がありません。");
         emptyHistoryText.setOnClickListener(null);
-        if (historyList.isEmpty()) {
+        if (visible.isEmpty()) {
             emptyHistoryText.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
         } else {
             emptyHistoryText.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
         }
-        adapter.updateList(historyList);
+        adapter.updateList(visible);
     }
 
     // --- HistoryAdapter.HistoryActionListener の実装 ---
