@@ -13,6 +13,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -38,7 +39,7 @@ jobs:
           script: |
             adb shell settings put system font_scale 1.3
             tests/firestore/node_modules/.bin/firebase emulators:exec --project demo-cookai --only auth,firestore './gradlew connectedDebugAndroidTest --no-daemon --max-workers=2'
-            adb pull /sdcard/Android/data/com.example.liefantidia2/files/ui ui-captures
+            adb pull /sdcard/Pictures/CookAiTest ui-captures
       - uses: actions/upload-artifact@v4
         if: always()
         with:

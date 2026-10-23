@@ -14,8 +14,9 @@ import com.google.android.gms.tasks.Tasks;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import java.io.File;
-import java.io.FileOutputStream;
+import android.content.ContentValues;
+import android.provider.MediaStore;
+import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 import static androidx.test.espresso.Espresso.onView;
@@ -85,11 +86,17 @@ public class CookingUiTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         Bitmap bitmap = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         assertNotNull(bitmap);
-        File directory = ApplicationProvider.getApplicationContext().getExternalFilesDir("ui");
-        assertNotNull(directory);
-        directory.mkdirs();
-        try (FileOutputStream output = new FileOutputStream(new File(directory, name + ".png"))) {
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
+        // Public emulator media survives the app uninstall performed by Gradle test cleanup.
+        Context context = ApplicationProvider.getApplicationContext();
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, name + ".png");
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+        values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CookAiTest/");
+        android.net.Uri uri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        assertNotNull(uri);
+        try (OutputStream output = context.getContentResolver().openOutputStream(uri)) {
+            assertNotNull(output);
+            assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output));
         }
         bitmap.recycle();
     }
