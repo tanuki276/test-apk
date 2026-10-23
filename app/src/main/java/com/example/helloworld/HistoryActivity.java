@@ -37,11 +37,36 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
     private FirebaseFirestore db;
     private String userId;
     private CollectionReference historyRef;
+    private String pendingExport;
+    private final androidx.activity.result.ActivityResultLauncher<String> exportLauncher =
+            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain"), uri -> {
+                if (uri == null || pendingExport == null) return;
+                try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
+                    if (output == null) throw new java.io.IOException("No output stream");
+                    output.write(pendingExport.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    Toast.makeText(this, "レシピを保存しました", Toast.LENGTH_SHORT).show();
+                } catch (java.io.IOException e) {
+                    Toast.makeText(this, R.string.toast_download_failed, Toast.LENGTH_LONG).show();
+                } finally {
+                    pendingExport = null;
+                }
+            });
+
+    @Override public void onDownloadClicked(RecipeHistory item) {
+        pendingExport = item.getRecipeContent();
+        exportLauncher.launch("CookAi-recipe-" + item.getTimestamp() + ".txt");
+    }
+
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putString("pendingExport", pendingExport);
+        super.onSaveInstanceState(state);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
+        if (savedInstanceState != null) pendingExport = savedInstanceState.getString("pendingExport");
 
         recyclerView = findViewById(R.id.recycler_view_history);
         emptyHistoryText = findViewById(R.id.text_empty_history);
@@ -51,8 +76,13 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
         db = FirebaseFirestore.getInstance();
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         // ユーザーIDは認証が完了しているはず
-        userId = user != null ? user.getUid() : "anonymous_user"; 
-        
+        if (user == null) {
+            Toast.makeText(this, "履歴を開くには認証が必要です。もう一度お試しください。", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+        userId = user.getUid();
+
         // Firestoreのパス: /artifacts/{appId}/users/{userId}/history
         String appId = HistoryManager.getAppId(this);
         historyRef = db.collection(
@@ -92,14 +122,18 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error loading history: ", e);
                     Toast.makeText(this, "履歴の読み込みに失敗しました。", Toast.LENGTH_SHORT).show();
-                    updateUi(new ArrayList<>()); // 失敗時もUIを更新して空表示
+                    emptyHistoryText.setText("履歴を読み込めませんでした。タップして再試行");
+                    emptyHistoryText.setVisibility(View.VISIBLE);
+                    emptyHistoryText.setOnClickListener(v -> loadHistory());
                 });
     }
-    
+
     /**
      * 履歴リストに基づいてUI（RecyclerViewと空メッセージ）を更新
      */
     private void updateUi(List<RecipeHistory> historyList) {
+        emptyHistoryText.setText(R.string.history_empty_message);
+        emptyHistoryText.setOnClickListener(null);
         if (historyList.isEmpty()) {
             emptyHistoryText.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
@@ -181,27 +215,27 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
      * Firestoreから全ての履歴を削除
      */
     private void clearAllHistory() {
-        historyRef.get().addOnSuccessListener(queryDocumentSnapshots -> {
-            if (queryDocumentSnapshots.isEmpty()) {
-                Toast.makeText(this, "削除する履歴はありません。", Toast.LENGTH_SHORT).show();
+        clearAllButton.setEnabled(false);
+        deleteNextBatch();
+    }
+
+    private void deleteNextBatch() {
+        historyRef.limit(400).get().addOnSuccessListener(documents -> {
+            if (documents.isEmpty()) {
+                Toast.makeText(this, R.string.toast_history_cleared, Toast.LENGTH_SHORT).show();
+                loadHistory();
                 return;
             }
-            
-            // バッチ処理で全てのドキュメントを削除
             db.runBatch(batch -> {
-                for (QueryDocumentSnapshot snapshot : queryDocumentSnapshots) {
-                    batch.delete(snapshot.getReference());
-                }
-            }).addOnSuccessListener(aVoid -> {
-                Toast.makeText(this, R.string.toast_history_cleared, Toast.LENGTH_SHORT).show();
-                loadHistory(); // UIを更新
-            }).addOnFailureListener(e -> {
-                Log.e(TAG, "Error clearing all history: ", e);
-                Toast.makeText(this, "全ての履歴の削除に失敗しました。", Toast.LENGTH_SHORT).show();
-            });
-        }).addOnFailureListener(e -> {
-            Log.e(TAG, "Error fetching history for deletion: ", e);
-            Toast.makeText(this, "履歴取得中にエラーが発生しました。", Toast.LENGTH_SHORT).show();
-        });
+                for (QueryDocumentSnapshot document : documents) batch.delete(document.getReference());
+            }).addOnSuccessListener(unused -> deleteNextBatch())
+              .addOnFailureListener(error -> deletionFailed());
+        }).addOnFailureListener(error -> deletionFailed());
+    }
+
+    private void deletionFailed() {
+        clearAllButton.setEnabled(true);
+        Toast.makeText(this, "削除を完了できませんでした。残っている履歴を確認して再試行してください。", Toast.LENGTH_LONG).show();
+        loadHistory();
     }
 }

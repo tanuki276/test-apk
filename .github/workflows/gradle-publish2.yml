@@ -3,6 +3,8 @@ name: APK Java デバッグビルド
 on:
   push:
     branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -30,16 +32,15 @@ jobs:
       - name: 4. gradlewに実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 5. デバッグAPKのビルド
+      - name: 5. 回帰テストとデバッグAPKのビルド
         run: |
-          echo "デバッグAPKをビルドします。"
-          ./gradlew clean assembleDebug --no-daemon --stacktrace --max-workers=2
+          ./gradlew clean testDebugUnitTest assembleDebug --no-daemon --stacktrace --max-workers=2
 
       - name: 6. 成果物(APK)のアップロード
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
+          name: CookAi-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7

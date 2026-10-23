@@ -40,8 +40,9 @@ jobs:
       - name: リリースAPKの成果物をアップロード
         uses: actions/upload-artifact@v4
         with:
-          name: liefantidia-apk
+          name: CookAi-release-apk
           # 🟢 APKの格納場所である app/build/outputs/apk/release/ を指定
           path: app/build/outputs/apk/release/
           # 成果物を保持する期間
           retention-days: 7
+

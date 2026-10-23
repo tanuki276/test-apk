@@ -20,5 +20,5 @@ dependencyResolutionManagement {
 }
 
 // プロジェクト構造の定義
-rootProject.name = "test-apk"
+rootProject.name = "CookAi"
 include ':app'

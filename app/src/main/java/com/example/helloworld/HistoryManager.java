@@ -39,7 +39,8 @@ public class HistoryManager {
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         // ユーザーが認証済みであればUID、そうでなければ匿名ユーザーとして設定
-        this.userId = user != null ? user.getUid() : "anonymous_user";
+        if (user == null) throw new IllegalStateException("Authentication required for history");
+        this.userId = user.getUid();
 
         Log.d(TAG, "HistoryManager initialized for App ID: " + appId + ", User ID: " + userId);
     }
@@ -48,17 +49,8 @@ public class HistoryManager {
      * App IDを取得するユーティリティメソッド。
      */
     public static String getAppId(Context context) {
-        try {
-            // R.string.app_nameから取得できない場合に備えてフォールバックを設ける
-            int resId = context.getResources().getIdentifier("app_name", "string", context.getPackageName());
-            if (resId != 0) {
-                 return context.getString(resId).toLowerCase();
-            }
-            return "liefantidia2-default-res-missing";
-        } catch (Exception e) {
-            Log.e(TAG, "Error getting app name resource, using default.", e);
-            return "liefantidia2-default";
-        }
+        // Stable storage namespace: changing the display name must not orphan existing history.
+        return "liefantidia2";
     }
 
     /**
