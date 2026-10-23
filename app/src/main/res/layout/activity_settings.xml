@@ -32,6 +32,13 @@
                     <com.google.android.material.button.MaterialButton android:id="@+id/button_login" style="@style/CookOutlineButton" android:text="ログイン" app:icon="@drawable/ic_cook_user"/>
                     <com.google.android.material.button.MaterialButton android:id="@+id/button_reset_password" style="@style/CookOutlineButton" android:text="パスワードを忘れた場合" app:icon="@drawable/ic_cook_shield"/>
                 </LinearLayout>
+                <LinearLayout android:id="@+id/guest_recovery_actions" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="メール登録せずに履歴を残す場合は、復元コードを発行して安全な場所に控えてください。コードがないと再インストール後に復元できません。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_enable_recovery" style="@style/CookOutlineButton" android:text="ゲスト用の復元コードを発行" app:icon="@drawable/ic_cook_shield"/>
+                    <EditText android:id="@+id/edit_recovery_code" style="@style/CookInput" android:hint="控えた復元コード" android:inputType="textVisiblePassword|textCapCharacters" android:saveEnabled="false" android:layout_marginTop="12dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_restore_guest" style="@style/CookOutlineButton" android:text="復元コードで履歴を戻す" app:icon="@drawable/ic_cook_history"/>
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_show_recovery" style="@style/CookOutlineButton" android:text="復元コードを表示・コピー" app:icon="@drawable/ic_cook_copy" android:visibility="gone"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/button_logout" style="@style/CookOutlineButton" android:text="ログアウト" app:icon="@drawable/ic_cook_user" android:visibility="gone"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/button_delete_account" style="@style/CookOutlineButton" android:text="アカウントと履歴を削除" app:icon="@drawable/ic_cook_shield" android:visibility="gone"/>
                 <ProgressBar android:id="@+id/progress_account" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center_horizontal" android:visibility="gone"/>

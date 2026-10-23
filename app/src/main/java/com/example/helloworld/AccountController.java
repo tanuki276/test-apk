@@ -51,6 +51,27 @@ public final class AccountController {
                 else finish(error(task.getException()));
             });
     }
+    public void enableGuestRecovery() {
+        if (!begin()) return;
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null || !user.isAnonymous()) { finish("ゲストで利用中にお試しください。"); return; }
+        String code = GuestRecovery.generate();
+        String uid = user.getUid();
+        user.linkWithCredential(EmailAuthProvider.getCredential(GuestRecovery.email(code), code))
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    GuestRecovery.save(context, uid, code);
+                    finish("復元コードを発行しました。必ずコピーして安全な場所に保管してください。");
+                } else finish(error(task.getException()));
+            });
+    }
+    public void restoreGuest(String input) {
+        if (!GuestRecovery.valid(input)) {
+            state.setValue(new State(false, "復元コードを確認してください。")); return;
+        }
+        String code = GuestRecovery.normalize(input);
+        login(GuestRecovery.email(code), code);
+    }
     public void login(String email, String password) {
         if (!begin()) return;
         FirebaseUser guest = auth.getCurrentUser();
@@ -74,6 +95,7 @@ public final class AccountController {
                     if (!result.isSuccessful()) {
                         finish("ログインを完了できませんでした。もう一度ログインしてください。"); return;
                     }
+                    if (GuestRecovery.isRecoveryEmail(email)) GuestRecovery.save(context, destinationUid, password);
                     finish(copied ? "ログインしました。保存済みの履歴を利用できます。"
                         : "ログインしました。調理設定を引き継げなかったため、設定画面で確認してください。");
                 });
@@ -118,8 +140,11 @@ public final class AccountController {
     /** Explicit opt-out after a failed migration; guest history is not deleted or transferred. */
     public void loginWithoutGuestHistory(String email, String password) {
         if (!begin()) return;
-        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> finish(task.isSuccessful()
-            ? "ログインしました。ゲスト履歴は引き継がれていません。" : error(task.getException())));
+        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
+            if (task.isSuccessful() && GuestRecovery.isRecoveryEmail(email))
+                GuestRecovery.save(context, task.getResult().getUser().getUid(), password);
+            finish(task.isSuccessful() ? "ログインしました。ゲスト履歴は引き継がれていません。" : error(task.getException()));
+        });
     }
     public void resetPassword(String email) {
         if (!begin()) return;
@@ -152,6 +177,7 @@ public final class AccountController {
                 user.delete().addOnCompleteListener(deleted -> {
                     if (deleted.isSuccessful()) {
                         new CookingPreferencesStore(context).delete(user.getUid());
+                        GuestRecovery.remove(context, user.getUid());
                         finish("アカウントと履歴を削除しました。");
                     }
                     else deletionFailed();

@@ -95,6 +95,31 @@ public class CookingUiTest {
             Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
         }
     }
+    @Test public void guestRecoveryCodeRestoresSameHistoryUid() throws Exception {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.signOut();
+        Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        String uid = auth.getCurrentUser().getUid();
+        AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
+        try {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::enableGuestRecovery);
+            waitForAccount(controller);
+            assertNotNull(auth.getCurrentUser());
+            assertEquals(uid, auth.getCurrentUser().getUid());
+            assertFalse(auth.getCurrentUser().isAnonymous());
+            String code = GuestRecovery.load(ApplicationProvider.getApplicationContext(), uid);
+            assertTrue(GuestRecovery.valid(code));
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::logout);
+            assertNull(auth.getCurrentUser());
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> controller.restoreGuest(GuestRecovery.display(code)));
+            waitForAccount(controller);
+            assertNotNull(auth.getCurrentUser());
+            assertEquals(uid, auth.getCurrentUser().getUid());
+        } finally {
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        }
+    }
     private void waitForAccount(AccountController controller) throws Exception {
         long deadline = System.currentTimeMillis() + 30000;
         do {
