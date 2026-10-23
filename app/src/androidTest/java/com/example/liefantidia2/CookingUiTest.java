@@ -35,6 +35,9 @@ public class CookingUiTest {
             .setProjectId("demo-cookai").build());
         FirebaseAuth.getInstance().useEmulator("10.0.2.2", 9099);
         FirebaseFirestore.getInstance().useEmulator("10.0.2.2", 8080);
+        FirebaseApp restore = FirebaseApp.initializeApp(context, FirebaseApp.getInstance().getOptions(), "account-restore");
+        FirebaseAuth.getInstance(restore).useEmulator("10.0.2.2", 9099);
+        FirebaseFirestore.getInstance(restore).useEmulator("10.0.2.2", 8080);
         Tasks.await(FirebaseAuth.getInstance().signInAnonymously(), 30, TimeUnit.SECONDS);
     }
     @Test public void saveDefaultsAndReloadAfterActivityRecreation() throws Exception {
@@ -74,14 +77,16 @@ public class CookingUiTest {
         String email = "relogin-" + System.nanoTime() + "@example.com";
         AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
         try {
-            controller.register(email, "TestPassword123!");
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(
+                () -> controller.register(email, "TestPassword123!"));
             waitForAccount(controller);
             assertFalse(auth.getCurrentUser().isAnonymous());
             String uid = auth.getCurrentUser().getUid();
-            controller.logout();
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::logout);
             assertNull(auth.getCurrentUser());
             // No guest data exists, so the destination can be signed in directly.
-            controller.login(email, "TestPassword123!");
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(
+                () -> controller.login(email, "TestPassword123!"));
             waitForAccount(controller);
             assertNotNull(auth.getCurrentUser());
             assertEquals(uid, auth.getCurrentUser().getUid());
