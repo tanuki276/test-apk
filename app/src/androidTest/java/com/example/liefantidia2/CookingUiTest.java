@@ -67,11 +67,44 @@ public class CookingUiTest {
         assertEquals("乳", store.load("test-target").allergies);
         store.delete("test-source"); store.delete("test-target");
     }
+    @Test public void registeredAccountCanLogInAgainAfterLogout() throws Exception {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        if (auth.getCurrentUser() != null) auth.signOut();
+        Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        String email = "relogin-" + System.nanoTime() + "@example.com";
+        AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
+        try {
+            controller.register(email, "TestPassword123!");
+            waitForAccount(controller);
+            assertFalse(auth.getCurrentUser().isAnonymous());
+            String uid = auth.getCurrentUser().getUid();
+            controller.logout();
+            assertNull(auth.getCurrentUser());
+            // No guest data exists, so the destination can be signed in directly.
+            controller.login(email, "TestPassword123!");
+            waitForAccount(controller);
+            assertNotNull(auth.getCurrentUser());
+            assertEquals(uid, auth.getCurrentUser().getUid());
+        } finally {
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        }
+    }
+    private void waitForAccount(AccountController controller) throws Exception {
+        long deadline = System.currentTimeMillis() + 30000;
+        do {
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            if (!controller.busy()) return;
+            Thread.sleep(100);
+        } while (System.currentTimeMillis() < deadline);
+        fail("Account operation timed out");
+    }
     @Test public void mainHasCompactSelectorsAndLongRecipeRemainsReadable() throws Exception {
         try (ActivityScenario<MainActivity> screen = ActivityScenario.launch(MainActivity.class)) {
             onView(withId(R.id.edit_text_ingredients)).check(matches(isDisplayed()));
             onView(withText("予算")).check(doesNotExist());
             onView(withText("自由指定")).check(doesNotExist());
+            onView(withText("いつもの調理設定")).check(doesNotExist());
             screenshot("main-top");
             onView(withId(R.id.spinner_difficulty)).perform(scrollTo(), click());
             onView(withText("初心者 (簡単)")).check(matches(isDisplayed()));

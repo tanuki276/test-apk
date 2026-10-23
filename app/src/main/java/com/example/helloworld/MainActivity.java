@@ -66,7 +66,6 @@ public class MainActivity extends AppCompatActivity {
 
         initializeUI();
         loadSpinnerAdapters();
-        findViewById(R.id.button_cooking_preferences).setOnClickListener(v -> openSettings());
 
         apiClient = new AiProxyClient();
 
@@ -125,8 +124,6 @@ public class MainActivity extends AppCompatActivity {
                 updateRecipeActions();
             }
             if (user != null) {
-                ((TextView) findViewById(R.id.text_cooking_summary)).setText(
-                    new CookingPreferencesStore(this).load(user.getUid()).summary());
                 isAuthInitialized.set(true);
                 if (historyManager == null) {
                     try {
@@ -139,6 +136,8 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
+            if (!getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+                    || AccountController.get(this).busy()) return;
             firebaseAuth.signInAnonymously().addOnCompleteListener(this, task -> {
                 if (destroyed) return;
                 if (!task.isSuccessful()) {
@@ -272,9 +271,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         updateGenerationAvailability();
-        FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
-        ((TextView) findViewById(R.id.text_cooking_summary)).setText(new CookingPreferencesStore(this)
-            .load(currentUser == null ? null : currentUser.getUid()).summary());
+        if (auth != null && auth.getCurrentUser() == null && !AccountController.get(this).busy()) {
+            // Settings may have signed out while this Activity was paused.
+            auth.signInAnonymously().addOnCompleteListener(this, task -> {
+                if (!task.isSuccessful()) Log.e(TAG, "Anonymous sign-in failed.", task.getException());
+            });
+        }
         handleHistoryIntent(getIntent());
     }
 
@@ -389,6 +391,12 @@ public class MainActivity extends AppCompatActivity {
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
             Toast.makeText(this, R.string.toast_input_ingredients, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String invalidIngredient = FoodInputValidator.validate(ingredients);
+        if (invalidIngredient != null) {
+            ingredientInput.setError(invalidIngredient);
+            ingredientInput.requestFocus();
             return;
         }
 

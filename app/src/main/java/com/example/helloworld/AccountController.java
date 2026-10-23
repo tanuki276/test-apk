@@ -14,7 +14,11 @@ public final class AccountController {
     public static final class State {
         public final boolean busy;
         public final String message;
-        State(boolean busy, String message) { this.busy = busy; this.message = message; }
+        public final boolean migrationBlocked;
+        State(boolean busy, String message) { this(busy, message, false); }
+        State(boolean busy, String message, boolean migrationBlocked) {
+            this.busy = busy; this.message = message; this.migrationBlocked = migrationBlocked;
+        }
     }
     private static AccountController instance;
     public static synchronized AccountController get(Context context) {
@@ -107,7 +111,15 @@ public final class AccountController {
         });
     }
     private void migrationFailed() {
-        finish("履歴の引き継ぎを完了できませんでした。コピーできていない履歴はこの端末のゲスト履歴に残っています。通信を確認して同じアカウントで再試行してください。");
+        if (restoreApp != null) FirebaseAuth.getInstance(restoreApp).signOut();
+        state.setValue(new State(false,
+            "ログイン情報は確認できましたが、ゲスト履歴の引き継ぎに失敗しました。再試行するか、履歴を引き継がずログインしてください。", true));
+    }
+    /** Explicit opt-out after a failed migration; guest history is not deleted or transferred. */
+    public void loginWithoutGuestHistory(String email, String password) {
+        if (!begin()) return;
+        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> finish(task.isSuccessful()
+            ? "ログインしました。ゲスト履歴は引き継がれていません。" : error(task.getException())));
     }
     public void resetPassword(String email) {
         if (!begin()) return;

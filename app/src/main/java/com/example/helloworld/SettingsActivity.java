@@ -76,8 +76,16 @@ public class SettingsActivity extends AppCompatActivity {
         accounts.state().observe(this, state -> {
             accountMessage.setText(state.message);
             findViewById(R.id.progress_account).setVisibility(state.busy ? android.view.View.VISIBLE : android.view.View.GONE);
-            if (!state.busy) passwordInput.setText("");
+            if (!state.busy && !state.migrationBlocked) passwordInput.setText("");
             renderAccount();
+            if (state.migrationBlocked && !isFinishing() && !isDestroyed()) {
+                new AlertDialog.Builder(this).setTitle("ゲスト履歴を引き継げませんでした")
+                    .setMessage("ログイン情報は正しいことを確認しました。引き継がずログインすると、この端末のゲスト履歴にはアクセスできなくなります。履歴が必要なら戻って通信状態を確認し、再試行してください。")
+                    .setNegativeButton("戻る", null)
+                    .setPositiveButton("引き継がずログイン", (dialog, which) -> {
+                        if (validate(true, false)) accounts.loginWithoutGuestHistory(email(), password());
+                    }).show();
+            }
         });
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
