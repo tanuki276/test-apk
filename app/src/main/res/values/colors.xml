@@ -2,15 +2,13 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-
     <!-- 高コントラストで読みやすいライト配色 -->
-    <color name="md_theme_light_primary">#315F9A</color>
+    <color name="md_theme_light_primary">#24594B</color>
     <color name="md_theme_light_onPrimary">#FFFFFF</color>
-    <color name="md_theme_light_secondary">#4B5F78</color>
+    <color name="md_theme_light_secondary">#8F6447</color>
     <color name="md_theme_light_onSecondary">#FFFFFF</color>
-    <color name="md_theme_light_background">#F7F9FC</color>
+    <color name="md_theme_light_background">#F4F5EE</color>
     <color name="md_theme_light_onBackground">#17191C</color>
-
     <color name="surface_card">#FFFFFFFF</color>
     <color name="text_primary">#17191C</color>
     <color name="text_secondary">#454A52</color>

@@ -1,62 +1,50 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="#F5F5F5"
-    android:fillViewport="true"
-    tools:context=".SettingsActivity">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="24dp">
-
-        <ImageButton
-            android:id="@+id/button_back"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:minWidth="48dp"
-            android:minHeight="48dp"
-            android:src="@drawable/ic_arrow_back"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="戻る"
-            android:padding="8dp"/>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/settings_title"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="#333333"
-            android:layout_marginStart="8dp"/>
-    </LinearLayout>
-
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="アカウント" android:textStyle="bold" android:textSize="20sp" android:paddingBottom="12dp" />
-    <TextView android:id="@+id/text_account_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:paddingBottom="12dp" />
-    <LinearLayout android:id="@+id/account_credentials" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-        <EditText android:id="@+id/edit_account_email" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:hint="メールアドレス" android:inputType="textEmailAddress" android:autofillHints="emailAddress" android:maxLength="254" />
-        <EditText android:id="@+id/edit_account_password" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:hint="パスワード（登録時は6文字以上）" android:inputType="textPassword" android:autofillHints="password" android:saveEnabled="false" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:text="登録すると今の履歴をそのまま引き継ぎます。登録済みのアカウントへログインする場合も、この端末のゲスト履歴を引き継ぎます。登録前にプライバシーポリシーをご確認ください。" />
-        <Button android:id="@+id/button_register" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="登録して履歴を引き継ぐ" />
-        <Button android:id="@+id/button_login" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="ログイン" />
-        <Button android:id="@+id/button_reset_password" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="パスワードを忘れた場合" />
-    </LinearLayout>
-    <Button android:id="@+id/button_logout" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="ログアウト" android:visibility="gone" />
-    <Button android:id="@+id/button_delete_account" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="アカウントと履歴を削除" android:visibility="gone" />
-    <ProgressBar android:id="@+id/progress_account" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" android:visibility="gone" />
-    <TextView android:id="@+id/text_account_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:accessibilityLiveRegion="polite" />
-    <TextView android:id="@+id/text_version" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="18sp" android:padding="16dp" />
-    <Button android:id="@+id/button_privacy" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:minHeight="48dp" android:text="プライバシーポリシー" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:padding="16dp" android:text="レシピはAIが作成します。アレルギーや食材の加熱・保存方法は、ご自身でも確認してください。" />
+<?xml version="1.0" ?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#F4F5EE" android:fillViewport="true" android:clipToPadding="false">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp" android:paddingBottom="32dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="20dp">
+            <ImageButton android:id="@+id/button_back" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_cook_back" android:contentDescription="戻る"/>
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="設定" android:textSize="28sp" android:textStyle="bold" android:textColor="#20372F"/>
+        </LinearLayout>
+        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/CookTitle" android:text="いつもの調理設定" android:drawableStart="@drawable/ic_cook_pot"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="保存した内容を、毎回のレシピ生成に反映します。この端末にアカウントごとに保存されます。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp"/>
+                <TextView style="@style/CookLabel" android:text="アレルギー・避けたい食材" android:drawableStart="@drawable/ic_cook_shield" android:drawablePadding="10dp"/>
+                <EditText android:id="@+id/edit_preset_allergies" style="@style/CookInput" android:hint="例：卵、乳、そば" android:inputType="textMultiLine" android:gravity="top" android:minLines="2" android:maxLength="400"/>
+                <TextView style="@style/CookLabel" android:text="使える調味料" android:drawableStart="@drawable/ic_cook_salt" android:drawablePadding="10dp"/>
+                <EditText android:id="@+id/edit_preset_seasonings" style="@style/CookInput" android:hint="例：塩、しょうゆ、みそ、オリーブ油" android:inputType="textMultiLine" android:gravity="top" android:minLines="2" android:maxLength="400"/>
+                <TextView style="@style/CookLabel" android:text="使える調理方法" android:drawableStart="@drawable/ic_cook_flame" android:drawablePadding="10dp"/>
+                <EditText android:id="@+id/edit_preset_methods" style="@style/CookInput" android:hint="例：フライパン、電子レンジ。揚げ物は不可" android:inputType="textMultiLine" android:gravity="top" android:minLines="2" android:maxLength="400"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="未入力の項目は指定なし。「なし」と書くと使用しない条件になります。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp" android:layout_marginTop="12dp"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_save_cooking" style="@style/CookPrimaryButton" android:text="調理設定を保存" app:icon="@drawable/ic_cook_save" android:layout_marginTop="12dp"/>
+                <TextView android:id="@+id/text_preset_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="14sp" android:textColor="#24594B" android:accessibilityLiveRegion="polite" android:paddingTop="8dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/CookTitle" android:text="アカウント" android:drawableStart="@drawable/ic_cook_user"/>
+                <TextView android:id="@+id/text_account_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#20372F" android:paddingBottom="12dp"/>
+                <LinearLayout android:id="@+id/account_credentials" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <EditText android:id="@+id/edit_account_email" style="@style/CookInput" android:hint="メールアドレス" android:inputType="textEmailAddress" android:autofillHints="emailAddress" android:maxLength="254"/>
+                    <EditText android:id="@+id/edit_account_password" style="@style/CookInput" android:layout_marginTop="12dp" android:hint="パスワード（登録時は6文字以上）" android:inputType="textPassword" android:autofillHints="password" android:saveEnabled="false"/>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="登録すると今の履歴を引き継げます。登録前にプライバシーポリシーをご確認ください。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp" android:layout_marginTop="12dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_register" style="@style/CookPrimaryButton" android:text="登録して履歴を引き継ぐ" app:icon="@drawable/ic_cook_user"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_login" style="@style/CookOutlineButton" android:text="ログイン" app:icon="@drawable/ic_cook_user"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_reset_password" style="@style/CookOutlineButton" android:text="パスワードを忘れた場合" app:icon="@drawable/ic_cook_shield"/>
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_logout" style="@style/CookOutlineButton" android:text="ログアウト" app:icon="@drawable/ic_cook_user" android:visibility="gone"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_delete_account" style="@style/CookOutlineButton" android:text="アカウントと履歴を削除" app:icon="@drawable/ic_cook_shield" android:visibility="gone"/>
+                <ProgressBar android:id="@+id/progress_account" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center_horizontal" android:visibility="gone"/>
+                <TextView android:id="@+id/text_account_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="12dp" android:textColor="#4D6259" android:accessibilityLiveRegion="polite"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/CookTitle" android:text="このアプリについて" android:drawableStart="@drawable/ic_cook_note"/>
+                <TextView android:id="@+id/text_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="14sp" android:textColor="#66776D" android:paddingBottom="12dp"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_privacy" style="@style/CookOutlineButton" android:text="プライバシーポリシー" app:icon="@drawable/ic_cook_shield"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="AIの提案はアレルギーの安全性を保証するものではありません。原材料表示や加熱・保存方法もご確認ください。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp" android:layout_marginTop="12dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 </ScrollView>

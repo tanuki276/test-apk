@@ -12,6 +12,10 @@ public class SettingsActivity extends AppCompatActivity {
     private android.widget.EditText emailInput, passwordInput;
     private android.widget.TextView accountStatus, accountMessage;
     private android.view.View credentials;
+    private android.widget.EditText presetAllergies, presetSeasonings, presetMethods;
+    private String presetOwner;
+    private boolean presetsLoaded;
+    private CookingPreferencesStore cookingStore;
     private final int[] accountActions = {R.id.button_register, R.id.button_login,
         R.id.button_reset_password, R.id.button_logout, R.id.button_delete_account};
 
@@ -19,7 +23,14 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
         WindowInsetsHelper.apply(this);
+        setupPresets();
         setupAccounts();
+        if (savedInstanceState != null && auth.getCurrentUser() != null &&
+                auth.getCurrentUser().getUid().equals(savedInstanceState.getString("presetOwner"))) {
+            presetAllergies.setText(savedInstanceState.getString("presetDraftAllergies", ""));
+            presetSeasonings.setText(savedInstanceState.getString("presetDraftSeasonings", ""));
+            presetMethods.setText(savedInstanceState.getString("presetDraftMethods", ""));
+        }
         findViewById(R.id.button_back).setOnClickListener(v -> { if (!accounts.busy()) finish(); });
         ((TextView) findViewById(R.id.text_version)).setText("Version " + BuildConfig.VERSION_NAME);
         findViewById(R.id.button_privacy).setOnClickListener(v -> {
@@ -39,6 +50,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void setupAccounts() {
         accounts = AccountController.get(this);
         auth = com.google.firebase.auth.FirebaseAuth.getInstance();
+        loadPresets(auth.getCurrentUser() == null ? null : auth.getCurrentUser().getUid());
         emailInput = findViewById(R.id.edit_account_email);
         passwordInput = findViewById(R.id.edit_account_password);
         accountStatus = findViewById(R.id.text_account_status);
@@ -74,6 +86,33 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
     }
+    private void setupPresets() {
+        cookingStore = new CookingPreferencesStore(this);
+        presetAllergies = findViewById(R.id.edit_preset_allergies);
+        presetSeasonings = findViewById(R.id.edit_preset_seasonings);
+        presetMethods = findViewById(R.id.edit_preset_methods);
+        presetAllergies.setSaveEnabled(false);
+        presetSeasonings.setSaveEnabled(false);
+        presetMethods.setSaveEnabled(false);
+        findViewById(R.id.button_save_cooking).setOnClickListener(v -> {
+            com.google.firebase.auth.FirebaseUser user = auth.getCurrentUser();
+            if (user == null || accounts.busy()) return;
+            CookingPreferences preferences = new CookingPreferences(presetAllergies.getText().toString(),
+                presetSeasonings.getText().toString(), presetMethods.getText().toString());
+            boolean saved = cookingStore.save(user.getUid(), preferences);
+            ((TextView) findViewById(R.id.text_preset_status)).setText(saved
+                ? "保存しました。次のレシピ生成から反映します。" : "保存できませんでした。もう一度お試しください。");
+        });
+    }
+    private void loadPresets(String uid) {
+        CookingPreferences preferences = cookingStore.load(uid);
+        presetAllergies.setText(preferences.allergies);
+        presetSeasonings.setText(preferences.seasonings);
+        presetMethods.setText(preferences.methods);
+        presetOwner = uid;
+        presetsLoaded = true;
+        ((TextView) findViewById(R.id.text_preset_status)).setText("");
+    }
     private String email() { return emailInput.getText().toString().trim(); }
     private String password() { return passwordInput.getText().toString(); }
     private boolean validate(boolean needsPassword, boolean registering) {
@@ -88,6 +127,13 @@ public class SettingsActivity extends AppCompatActivity {
     private void renderAccount() {
         com.google.firebase.auth.FirebaseUser user = auth.getCurrentUser();
         boolean signedIn = user != null && !user.isAnonymous();
+        String uid = user == null ? null : user.getUid();
+        if (!presetsLoaded || !java.util.Objects.equals(presetOwner, uid)) loadPresets(uid);
+        boolean editable = user != null && !accounts.busy();
+        presetAllergies.setEnabled(editable);
+        presetSeasonings.setEnabled(editable);
+        presetMethods.setEnabled(editable);
+        findViewById(R.id.button_save_cooking).setEnabled(editable);
         accountStatus.setText(signedIn ? "ログイン中: " + EmailMasker.mask(user.getEmail())
             : "ゲストで利用中です。登録すると、再インストール後も履歴を引き継げます。");
         if (signedIn) {
@@ -117,6 +163,13 @@ public class SettingsActivity extends AppCompatActivity {
             accounts.deleteAccount(value);
         }));
         dialog.show();
+    }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putString("presetOwner", presetOwner);
+        state.putString("presetDraftAllergies", presetAllergies.getText().toString());
+        state.putString("presetDraftSeasonings", presetSeasonings.getText().toString());
+        state.putString("presetDraftMethods", presetMethods.getText().toString());
+        super.onSaveInstanceState(state);
     }
     @Override protected void onDestroy() {
         if (auth != null && authListener != null) auth.removeAuthStateListener(authListener);

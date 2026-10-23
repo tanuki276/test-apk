@@ -63,10 +63,17 @@ public final class AccountController {
         destinationAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
             if (!task.isSuccessful()) { finish(error(task.getException())); return; }
             String destinationUid = task.getResult().getUser().getUid();
-            Runnable switchAccount = () -> auth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener(result -> finish(result.isSuccessful()
-                    ? "ログインしました。保存済みの履歴を利用できます。"
-                    : "ログインを完了できませんでした。履歴の移行先は登録済みアカウントです。もう一度ログインしてください。"));
+            Runnable switchAccount = () -> {
+                boolean copied = new CookingPreferencesStore(context).copyIfMissing(
+                    guest == null ? null : guest.getUid(), destinationUid);
+                auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(result -> {
+                    if (!result.isSuccessful()) {
+                        finish("ログインを完了できませんでした。もう一度ログインしてください。"); return;
+                    }
+                    finish(copied ? "ログインしました。保存済みの履歴を利用できます。"
+                        : "ログインしました。調理設定を引き継げなかったため、設定画面で確認してください。");
+                });
+            };
             if (guest == null) { switchAccount.run(); return; }
             migratePage(guest.getUid(), destinationUid, switchAccount);
         });
@@ -131,7 +138,10 @@ public final class AccountController {
             if (!task.isSuccessful()) { deletionFailed(); return; }
             if (task.getResult().isEmpty()) {
                 user.delete().addOnCompleteListener(deleted -> {
-                    if (deleted.isSuccessful()) finish("アカウントと履歴を削除しました。");
+                    if (deleted.isSuccessful()) {
+                        new CookingPreferencesStore(context).delete(user.getUid());
+                        finish("アカウントと履歴を削除しました。");
+                    }
                     else deletionFailed();
                 });
                 return;

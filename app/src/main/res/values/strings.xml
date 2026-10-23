@@ -1,29 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CookAi</string>
-
     <string name="label_ingredients">利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）</string>
     <string name="hint_ingredients">食材をコンマ区切りで入力</string>
     <string name="checkbox_use_all_ingredients">入力した具材を全て使用する</string>
-
     <string name="label_settings_title">レシピ設定（難易度、ジャンル、時間、制約）</string>
-    <string name="label_price_range">予算（価格帯）設定</string>
-    <string name="hint_min_price">最低価格 (円)</string>
-    <string name="hint_max_price">最高価格 (円)</string>
     <string name="button_generate_recipe">レシピを見る</string>
     <string name="text_recipe_initial">食材と条件を入力すると、ここにレシピが表示されます。</string>
     <string name="button_settings">設定</string>
     <string name="button_history">履歴</string>
-
     <string name="label_instructions">自由指示</string>
     <string name="hint_instructions">具体的な指示を記載してください。</string>
-
     <string name="settings_title">設定</string>
-
     <string name="toast_input_ingredients">食材を入力してください。</string>
-    <string name="error_invalid_price_range">価格は0以上で、最低価格が最高価格を超えないように入力してください。</string>
-    <string name="error_invalid_price_format">価格帯には有効な数値を入力してください。</string>
-
     <string name="history_title">レシピ履歴</string>
     <string name="history_empty_message">まだレシピの履歴はありません。</string>
     <string name="history_download_button">ダウンロード</string>

@@ -28,8 +28,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
 
     private EditText ingredientInput;
-    private EditText minPriceInput;
-    private EditText maxPriceInput;
     private TextView recipeOutputText;
     private TextView generationStatus;
     private Button generateRecipeButton;
@@ -45,11 +43,6 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinnerDiet;
     private CheckBox useAllIngredientsCheckbox;
     private Spinner spinnerType;
-    private EditText editOptionalDifficulty;
-    private EditText editOptionalGenre;
-    private EditText editOptionalTime;
-    private EditText editOptionalDiet;
-    private EditText editOptionalType;
     private EditText editInstructions;
 
     private AiProxyClient apiClient;
@@ -73,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
 
         initializeUI();
         loadSpinnerAdapters();
+        findViewById(R.id.button_cooking_preferences).setOnClickListener(v -> openSettings());
 
         apiClient = new AiProxyClient();
 
@@ -131,6 +125,8 @@ public class MainActivity extends AppCompatActivity {
                 updateRecipeActions();
             }
             if (user != null) {
+                ((TextView) findViewById(R.id.text_cooking_summary)).setText(
+                    new CookingPreferencesStore(this).load(user.getUid()).summary());
                 isAuthInitialized.set(true);
                 if (historyManager == null) {
                     try {
@@ -162,8 +158,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void initializeUI() {
         ingredientInput = findViewById(R.id.edit_text_ingredients);
-        minPriceInput = findViewById(R.id.edit_text_min_price);
-        maxPriceInput = findViewById(R.id.edit_text_max_price);
         generateRecipeButton = findViewById(R.id.button_generate_recipe);
         settingsButton = findViewById(R.id.button_settings);
         historyButton = findViewById(R.id.button_history);
@@ -182,11 +176,6 @@ public class MainActivity extends AppCompatActivity {
         useAllIngredientsCheckbox = findViewById(R.id.checkbox_use_all_ingredients);
         spinnerType = findViewById(R.id.spinner_type);
 
-        editOptionalDifficulty = findViewById(R.id.edit_optional_difficulty);
-        editOptionalGenre = findViewById(R.id.edit_optional_genre);
-        editOptionalTime = findViewById(R.id.edit_optional_time);
-        editOptionalDiet = findViewById(R.id.edit_optional_diet);
-        editOptionalType = findViewById(R.id.edit_optional_type);
         editInstructions = findViewById(R.id.edit_instructions);
     }
 
@@ -283,6 +272,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         updateGenerationAvailability();
+        FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
+        ((TextView) findViewById(R.id.text_cooking_summary)).setText(new CookingPreferencesStore(this)
+            .load(currentUser == null ? null : currentUser.getUid()).summary());
         handleHistoryIntent(getIntent());
     }
 
@@ -327,6 +319,8 @@ public class MainActivity extends AppCompatActivity {
         boolean ready = proxyReady && (authReady || isAuthInitialized.get()) && !(auth != null && AccountController.get(this).busy());
         generateRecipeButton.setEnabled(generating || ready);
         generateRecipeButton.setText(generating ? "停止" : generationFailed ? "もう一度生成する" : "レシピを生成する");
+        ((com.google.android.material.button.MaterialButton) generateRecipeButton).setIconResource(
+            generating ? R.drawable.ic_cook_stop : R.drawable.ic_cook_spark);
 
         if (recipeOutputText == null || !lastRecipe.isEmpty() || generating) return;
 
@@ -385,11 +379,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void continueRecipeGeneration() {
-        if (ingredientInput == null || minPriceInput == null || maxPriceInput == null ||
-                spinnerDifficulty == null || spinnerGenre == null || spinnerTime == null ||
-                spinnerDiet == null || spinnerType == null || editOptionalDifficulty == null ||
-                editOptionalGenre == null || editOptionalTime == null || editOptionalDiet == null ||
-                editOptionalType == null || editInstructions == null || useAllIngredientsCheckbox == null) {
+        if (ingredientInput == null || spinnerDifficulty == null || spinnerGenre == null ||
+                spinnerTime == null || spinnerDiet == null || spinnerType == null ||
+                editInstructions == null || useAllIngredientsCheckbox == null) {
             Toast.makeText(this, "画面を開き直してお試しください。", Toast.LENGTH_LONG).show();
             return;
         }
@@ -400,37 +392,17 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String minPriceStr = minPriceInput.getText().toString().trim();
-        String maxPriceStr = maxPriceInput.getText().toString().trim();
-        String priceConstraint = "";
-
-        if (!minPriceStr.isEmpty() || !maxPriceStr.isEmpty()) {
-            try {
-                int min = minPriceStr.isEmpty() ? 0 : Integer.parseInt(minPriceStr);
-                int max = maxPriceStr.isEmpty() ? Integer.MAX_VALUE : Integer.parseInt(maxPriceStr);
-                if (min < 0 || max < 0 || min > max) {
-                    Toast.makeText(this, R.string.error_invalid_price_range, Toast.LENGTH_LONG).show();
-                    return;
-                }
-                String maxDisplay = max == Integer.MAX_VALUE ? "制限なし" : max + "円";
-                priceConstraint = String.format("価格帯: %d円〜%s", min, maxDisplay);
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, R.string.error_invalid_price_format, Toast.LENGTH_LONG).show();
-                return;
-            }
-        }
-
         boolean mustUseAll = useAllIngredientsCheckbox.isChecked();
         String ingredientUsage = mustUseAll
                 ? " (入力された具材は全て使用してください)"
                 : " (入力された具材は、全て使用しなくても構いません)";
         final String ingredientsWithUsage = ingredients + ingredientUsage;
 
-        String difficulty = combineConstraint(spinnerDifficulty.getSelectedItem().toString(), editOptionalDifficulty.getText().toString());
-        String genre = combineConstraint(spinnerGenre.getSelectedItem().toString(), editOptionalGenre.getText().toString());
-        String timeConstraint = combineConstraint(spinnerTime.getSelectedItem().toString(), editOptionalTime.getText().toString());
-        String dietConstraint = combineConstraint(spinnerDiet.getSelectedItem().toString(), editOptionalDiet.getText().toString());
-        String typeConstraint = combineConstraint(spinnerType.getSelectedItem().toString(), editOptionalType.getText().toString());
+        String difficulty = spinnerDifficulty.getSelectedItem().toString();
+        String genre = spinnerGenre.getSelectedItem().toString();
+        String timeConstraint = spinnerTime.getSelectedItem().toString();
+        String dietConstraint = spinnerDiet.getSelectedItem().toString();
+        String typeConstraint = spinnerType.getSelectedItem().toString();
 
         StringBuilder allConstraintsBuilder = new StringBuilder();
         allConstraintsBuilder.append(String.format(
@@ -442,14 +414,13 @@ public class MainActivity extends AppCompatActivity {
                 dietConstraint
         ));
 
-        if (!priceConstraint.isEmpty()) {
-            allConstraintsBuilder.append(", ").append(priceConstraint);
-        }
-
         String instructions = editInstructions.getText().toString().trim();
         if (!instructions.isEmpty()) {
-            allConstraintsBuilder.append(". 【最重要指示】: ").append(instructions);
+            allConstraintsBuilder.append("\n【今回の追加指示】").append(instructions);
         }
+        FirebaseUser currentUser = auth.getCurrentUser();
+        CookingPreferences preferences = new CookingPreferencesStore(this).load(currentUser == null ? null : currentUser.getUid());
+        allConstraintsBuilder.append(preferences.prompt());
         final String allConstraints = allConstraintsBuilder.toString();
 
         if (ingredientsWithUsage.length() > 2000 || allConstraints.length() > 4000) {
@@ -530,16 +501,4 @@ public class MainActivity extends AppCompatActivity {
         updateRecipeActions();
     }
 
-    private String combineConstraint(String spinnerSelection, String optionalInput) {
-        String input = optionalInput == null ? "" : optionalInput.trim();
-        String selection = spinnerSelection == null ? "" : spinnerSelection;
-
-        if (!input.isEmpty()
-                && !selection.contains("選択しない")
-                && !selection.contains("指定なし")) {
-            return selection + "（" + input + "）";
-        }
-        if (!input.isEmpty()) return input;
-        return selection;
-    }
 }
