@@ -16,7 +16,7 @@ jobs:
         working-directory: cloudflare-worker
       - run: npm test
         working-directory: cloudflare-worker
-      - run: npx wrangler deploy --dry-run
+      - run: node --check src/index.js && node --check src/budget.js
         working-directory: cloudflare-worker
   firestore:
     runs-on: ubuntu-latest

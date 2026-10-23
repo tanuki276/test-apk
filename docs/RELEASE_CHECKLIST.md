@@ -20,7 +20,7 @@
 - NodeでWorkerの7テスト成功（同時アクセス、全体上限、個人上限、日付変更、不正設定、ヘルス応答、認証拒否）。
 - Android XML構文チェック、JavaScript構文チェック、git diff --check成功。
 - Androidビルド: Gradleは取得できたが、AGP等のMaven依存取得がNetwork is unreachableで失敗。ビルド成功は未確認。
-- Firestoreエミュレータで本人のCRUD・一覧読み込み、他UID/未認証の拒否、範囲外パスと不正データの拒否を検証し成功。Worker設定検証のCIも追加。
+- Firestoreエミュレータで本人のCRUD・一覧読み込み、他UID/未認証の拒否、範囲外パスと不正データの拒否を検証し成功。Workerの構文・回帰テストのCIも追加。
 - Worker dry-runは、ソースのCloudflare送信可能性を理由に自動承認レビューで拒否され未確認。
 - 実機・エミュレーター未接続。UIとクラッシュ確認は未実行。
 
