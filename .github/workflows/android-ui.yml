@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: '22'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
       - run: npm ci
         working-directory: tests/firestore
       - name: Enable KVM
