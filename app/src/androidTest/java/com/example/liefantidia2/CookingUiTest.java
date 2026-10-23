@@ -117,7 +117,7 @@ public class CookingUiTest {
             }
             try (ActivityScenario<SettingsActivity> again = ActivityScenario.launch(SettingsActivity.class)) {
                 onView(withText("ゲストの復元コード")).check(doesNotExist());
-                onView(withId(R.id.button_show_recovery)).check(matches(isDisplayed()));
+                onView(withId(R.id.button_show_recovery)).perform(scrollTo()).check(matches(isDisplayed()));
             }
             InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::logout);
             assertNull(auth.getCurrentUser());
