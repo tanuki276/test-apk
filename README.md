@@ -1,40 +1,40 @@
 # CookAi（コークアイ）
 
-食材・予算・調理時間・食事制限から、Google Geminiで日本語レシピを作るAndroidアプリです。
+食材・予算・調理時間・食事制限から、日本語のレシピを生成するAndroidアプリです。
 
-## 使い方
+## AIアーキテクチャ
 
-1. 設定で自分のGemini APIキーを保存します（OpenAIのキーには対応しません）。
-2. 食材と条件を入力し、「レシピを生成する」を押します。
-3. 結果はコピー・共有できます。認証が成功している場合はFirebaseに履歴を保存します。
-4. 履歴から再表示・削除・テキストファイルの保存ができます。保存先はAndroidのファイル選択画面で指定します。
+AndroidアプリはLLMプロバイダへ直接接続せず、Firebase匿名認証のIDトークンを付けてCloudflare Workerへリクエストします。Worker側で Groq → Gemini → Workers AI の順に利用可能なプロバイダへフォールバックします。
 
-写真からの食材入力は準備中です。生成中に画面を回転して再作成した場合、通信はキャンセルされます。入力欄と直前に完成したレシピは復元されるので再度生成してください。
+LLMのAPIキーはAPKや端末設定へ保存しません。`GROQ_API_KEY` / `GEMINI_API_KEY` などの秘密情報はCloudflare WorkerのSecretとして管理します。
 
-## 開発・検証
+## 主な機能
+
+- CookAiへの表示名変更（既存データ互換のためapplicationIdとFirestore保存先は維持）
+- レシピ生成の二重送信防止、画面破棄時の通信キャンセル
+- 完成済みレシピの画面再作成時の復元
+- レシピのコピー・共有
+- 履歴からの再表示・テキスト保存
+- 履歴の大量削除を400件ずつ処理し、読み込み失敗時に再試行
+- 生成成功時だけ完了表示と履歴保存
+
+写真からの食材入力は準備中です。
+
+## Androidビルド
 
 JDK 17、Android SDK 34、ネットワーク接続が必要です。
 
 ```sh
-bash gradlew testDebugUnitTest assembleDebug
+./gradlew testDebugUnitTest assembleDebug \
+  -PAI_PROXY_URL=https://<worker>/generate-recipe
 ```
 
-GitHub Actionsはプルリクエストでも回帰テストとデバッグAPKをビルドします。成功した実行の `CookAi-debug-apk` artifactからAPKを取得できます。リリース署名の設定は含まれていません。
+`AI_PROXY_URL` が未設定の場合はプレースホルダーURLでビルドされるため、AI生成は無効になります。
 
-## 互換性とデータ
+## Cloudflare Worker
 
-表示名はCookAiに変更しています。既存インストールの更新と履歴の継続利用のため、applicationId / Java package `com.example.liefantidia2` とFirestoreの `artifacts/liefantidia2/users/{uid}/history` は維持します。既存アプリへの上書きには同じ署名鍵が必要です。
+Worker実装は `cloudflare-worker/` にあります。Cloudflare側で必要なSecretを設定してからデプロイしてください。`.github/workflows/deploy-cloud-ai.yml` ではWorkerをデプロイし、取得したWorker URLを埋め込んだデバッグAPKをビルドできます。
 
-APIキーはAndroid Keystoreで暗号化して端末に保存します。生体認証は要求しません。食材と条件をGoogle Geminiに送信し、認証成功時は生成レシピをFirebaseに保存します。Firebaseの匿名認証と、各ユーザーが自身の履歴だけにアクセスできるFirestoreルールを設定してください。API利用料金は各自の契約に従います。
+## データとセキュリティ
 
-認証や履歴サービスの障害はレシピ生成を妨げませんが、履歴保存は利用できません。レシピの価格は概算です。アレルギーと加熱状態は調理時にも確認してください。
-
-## 今回の変更
-
-- CookAiへの改名と表示・設定説明の整理
-- 成功／失敗コールバックの分離、空・途中終了レスポンスの拒否、複数テキストパート対応
-- 通信の総タイムアウト、画面終了時のキャンセル、二重送信防止
-- コピー・共有・履歴のファイル保存を実装
-- 履歴の大量削除を400件ずつ処理、読み込み失敗時の再試行
-- APIキーをURLに含めず送信し、エラー本文やキーをログに出さない
-- コールバックとレスポンス解析の回帰テスト
+既存インストールと履歴を維持するため、applicationId / Java package `com.example.liefantidia2` とFirestoreの既存保存先は維持します。Firebase匿名認証トークンはWorkerへのアクセス確認に利用します。LLMプロバイダの秘密鍵はAndroidアプリへ配布しません。

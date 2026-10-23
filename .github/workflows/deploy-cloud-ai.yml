@@ -1,0 +1,106 @@
+name: Cloud AI 配備 + 使用可能APKビルド
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-and-build:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SKIP_JDK_VERSION_CHECK: true
+
+    steps:
+      - name: 1. リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: 2. Cloudflare認証情報を確認
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID を Repository Secrets に設定してください。" >&2
+            exit 1
+          fi
+
+      - name: 3. Node.jsをセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare-worker/package-lock.json
+
+      - name: 4. Worker依存関係をインストール
+        working-directory: cloudflare-worker
+        run: npm install
+
+      - name: 5. Cloudflare Workerをデプロイ
+        working-directory: cloudflare-worker
+        run: npx wrangler deploy
+
+      - name: 6. Worker URLを取得して疎通確認
+        id: worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -fsS \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")
+
+          SUBDOMAIN=$(printf '%s' "$RESPONSE" | node -e '
+            let s="";
+            process.stdin.on("data", d => s += d);
+            process.stdin.on("end", () => {
+              const j = JSON.parse(s);
+              if (!j.success || !j.result || !j.result.subdomain) process.exit(1);
+              process.stdout.write(j.result.subdomain);
+            });
+          ')
+
+          BASE_URL="https://liefantidia2-ai-router.${SUBDOMAIN}.workers.dev"
+          ENDPOINT="${BASE_URL}/generate-recipe"
+
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "${BASE_URL}/health" >/dev/null; then
+              break
+            fi
+            if [ "$i" -eq 6 ]; then
+              echo "Worker health check failed" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "endpoint=${ENDPOINT}" >> "$GITHUB_OUTPUT"
+          echo "### AI Router" >> "$GITHUB_STEP_SUMMARY"
+          echo "Worker: ${BASE_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Android endpoint: ${ENDPOINT}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 7. JDK 17をセットアップ
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: 8. Android SDKをセットアップ
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0'
+
+      - name: 9. 使用可能なAPKをビルド
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean assembleDebug \
+            -PAI_PROXY_URL="${{ steps.worker.outputs.endpoint }}" \
+            --no-daemon --stacktrace --max-workers=2
+
+      - name: 10. APKをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: liefantidia2-cloud-ai-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

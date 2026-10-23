@@ -4,12 +4,10 @@
 
     <string name="label_ingredients">利用可能な食材を入力（例: 鶏肉、玉ねぎ、卵）</string>
     <string name="hint_ingredients">食材をコンマ区切りで入力</string>
-
     <string name="checkbox_use_all_ingredients">入力した具材を全て使用する</string>
-
-    <string name="button_camera_text">食材をカメラでスキャン</string> 
+    <string name="button_camera_text">食材をカメラでスキャン</string>
     <string name="content_description_camera">食材の画像を撮影</string>
-    
+
     <string name="label_settings_title">レシピ設定（難易度、ジャンル、時間、制約）</string>
     <string name="label_price_range">予算（価格帯）設定</string>
     <string name="hint_min_price">最低価格 (円)</string>
@@ -17,24 +15,19 @@
     <string name="button_generate_recipe">レシピを見る</string>
     <string name="text_recipe_initial">食材と条件を入力すると、ここにレシピが表示されます。</string>
     <string name="button_settings">設定</string>
-    <!-- 【追加】履歴ボタンのテキスト -->
     <string name="button_history">履歴</string>
 
     <string name="label_instructions">自由指示</string>
     <string name="hint_instructions">具体的な指示を記載してください。</string>
 
-    <string name="settings_title">APIキー設定</string>
-    <string name="settings_description">Google Gemini APIキーを入力してください。キーはAndroid Keystoreを使って暗号化し、端末に保存します。</string>
-    <string name="settings_hint_api_key">Gemini APIキーを入力</string>
-    <string name="button_save_key">APIキーを保存</string>
-    <string name="security_note">レシピ生成時に食材と条件をGoogle Geminiへ送信します。履歴はFirebaseに保存されます。APIの利用料金はご自身の契約に従います。</string>
-    <string name="key_saved_placeholder">キーは安全に保存されています</string> 
-    <string name="toast_set_api_key">APIキーを設定してください。</string>
+    <string name="settings_title">AI接続設定</string>
+    <string name="settings_description">AIはCloudflare Worker経由で利用します。ユーザーがGeminiやGroqのAPIキーを入力する必要はありません。</string>
+    <string name="security_note">LLMプロバイダの秘密鍵はAPKに保存せず、Cloudflare WorkerのSecretとして管理します。Firebase匿名認証トークンを使ってWorkerへのアクセスを保護します。</string>
+
     <string name="toast_input_ingredients">食材を入力してください。</string>
-    <string name="error_invalid_price_range">最低価格が最高価格を超えています。</string>
+    <string name="error_invalid_price_range">価格は0以上で、最低価格が最高価格を超えないように入力してください。</string>
     <string name="error_invalid_price_format">価格帯には有効な数値を入力してください。</string>
-    
-    <!-- 【追加】履歴画面用 -->
+
     <string name="history_title">レシピ履歴</string>
     <string name="history_empty_message">まだレシピの履歴はありません。</string>
     <string name="history_clear_button">履歴をすべて削除</string>
@@ -44,7 +37,6 @@
     <string name="dialog_confirm">はい</string>
     <string name="dialog_cancel">キャンセル</string>
     <string name="toast_history_cleared">レシピ履歴をすべて削除しました。</string>
-    <string name="toast_download_success">レシピをダウンロードしました。ファイル名: </string>
-    <string name="toast_download_failed">ファイルのダウンロードに失敗しました。</string>
-
+    <string name="toast_download_success">レシピを保存しました。ファイル名: </string>
+    <string name="toast_download_failed">ファイルの保存に失敗しました。</string>
 </resources>

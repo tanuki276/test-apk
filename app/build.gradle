@@ -1,10 +1,7 @@
 // Top-level plugins definition
 plugins {
     id 'com.android.application'
-    // Firebaseサービスを有効にするために、Google Servicesプラグインを追加します
-    id 'com.google.gms.google-services' 
-    // Javaのみのプロジェクトとして扱うため、Kotlin関連は削除またはコメントアウトします
-    // id 'org.jetbrains.kotlin.android' 
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -12,13 +9,18 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.liefantidia2" 
+        applicationId "com.example.liefantidia2"
         minSdk 26
         targetSdk 34
         versionCode 2
         versionName "1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // 本番URLは local.properties または CI の -PAI_PROXY_URL で差し替える。
+        // 秘密鍵は絶対にAPKへ入れない。
+        def aiProxyUrl = project.findProperty("AI_PROXY_URL") ?: "https://example.workers.dev/generate-recipe"
+        buildConfigField "String", "AI_PROXY_URL", "\"${aiProxyUrl}\""
     }
 
     buildTypes {
@@ -29,56 +31,31 @@ android {
     }
 
     compileOptions {
-        // Java 11を使用
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    // Kotlinを使用しないため削除
-    // kotlinOptions {
-    //     jvmTarget = '11'
-    // }
+    buildFeatures {
+        buildConfig true
+    }
 }
 
 dependencies {
-    // AndroidX Core and UI libraries
-    implementation 'androidx.core:core-ktx:1.13.1' 
+    implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0' 
+    implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // 生体認証ライブラリ
-    implementation 'androidx.biometric:biometric:1.1.0' 
-
-    // 必須: OkHttp - Gemini APIへの通信に使用
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0' 
-
-    // 【必須追加】Gson - レシピ履歴（JSON）のSharedPreferencesへの保存に使用
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.google.code.gson:gson:2.10.1'
-
-    // 【必須追加】RecyclerView - レシピ履歴画面の一覧表示に使用
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
-
-    // CardView - UIコンポーネントで使用
     implementation 'androidx.cardview:cardview:1.0.0'
-    
-    // **↓↓↓ 前回のビルドエラー解消のためFirebase依存関係を追加 ↓↓↓**
 
-    // Firebase BOM (Bill of Materials) を使用して、Firebaseライブラリのバージョンを管理
     implementation platform('com.google.firebase:firebase-bom:32.7.0')
-
-    // Firebase Authentication (FirebaseAuth, FirebaseUser のエラーを解消)
     implementation 'com.google.firebase:firebase-auth'
-
-    // Firebase Firestore (FirebaseFirestore, CollectionReference, Query などのエラーを解消)
     implementation 'com.google.firebase:firebase-firestore'
-    
-    // **↑↑↑ Firebase依存関係の追加はここまで ↑↑↑**
 
-    // Test dependencies
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.json:json:20231013'
-    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }

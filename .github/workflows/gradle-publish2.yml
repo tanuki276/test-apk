@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -31,9 +32,8 @@ jobs:
       - name: 4. gradlewに実行権限を付与
         run: chmod +x ./gradlew
 
-      - name: 5. デバッグAPKのビルド
+      - name: 5. 回帰テストとデバッグAPKのビルド
         run: |
-          echo "デバッグAPKをビルドします。"
           ./gradlew clean testDebugUnitTest assembleDebug --no-daemon --stacktrace --max-workers=2
 
       - name: 6. 成果物(APK)のアップロード
@@ -44,4 +44,3 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7
-
