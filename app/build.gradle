@@ -4,22 +4,25 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
+def aiProxyUrl = providers.gradleProperty("AI_PROXY_URL")
+        .orElse(providers.environmentVariable("AI_PROXY_URL"))
+        .getOrElse("https://example.workers.dev/generate-recipe")
+
 android {
     namespace 'com.example.liefantidia2'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.example.liefantidia2"
         minSdk 26
-        targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        targetSdk 36
+        versionCode 3
+        versionName "1.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // 本番URLは local.properties または CI の -PAI_PROXY_URL で差し替える。
+        // 本番URLは CI の -PAI_PROXY_URL または環境変数で指定する。
         // 秘密鍵は絶対にAPKへ入れない。
-        def aiProxyUrl = project.findProperty("AI_PROXY_URL") ?: "https://example.workers.dev/generate-recipe"
         buildConfigField "String", "AI_PROXY_URL", "\"${aiProxyUrl}\""
     }
 
@@ -58,4 +61,16 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+tasks.configureEach { task ->
+    if (task.name == "preReleaseBuild") {
+        task.doFirst {
+            def endpoint = new URI(aiProxyUrl)
+            if (endpoint.scheme != "https" || !endpoint.host || endpoint.host == "example.workers.dev"
+                    || endpoint.path != "/generate-recipe" || endpoint.userInfo || endpoint.fragment) {
+                throw new GradleException("Release requires a production HTTPS AI_PROXY_URL ending in /generate-recipe")
+            }
+        }
+    }
 }

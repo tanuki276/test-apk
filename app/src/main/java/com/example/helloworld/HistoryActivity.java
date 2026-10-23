@@ -31,7 +31,6 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
     private RecyclerView recyclerView;
     private HistoryAdapter adapter;
     private TextView emptyHistoryText;
-    private Button clearAllButton;
 
     // Firestore関連
     private FirebaseFirestore db;
@@ -66,11 +65,11 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history);
+        WindowInsetsHelper.apply(this);
         if (savedInstanceState != null) pendingExport = savedInstanceState.getString("pendingExport");
 
         recyclerView = findViewById(R.id.recycler_view_history);
         emptyHistoryText = findViewById(R.id.text_empty_history);
-        clearAllButton = findViewById(R.id.button_clear_history);
         ImageButton backButton = findViewById(R.id.button_back);
 
         db = FirebaseFirestore.getInstance();
@@ -92,7 +91,6 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
         setupRecyclerView();
 
         backButton.setOnClickListener(v -> finish());
-        clearAllButton.setOnClickListener(v -> showClearHistoryConfirmation());
 
         loadHistory();
     }
@@ -137,11 +135,9 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
         if (historyList.isEmpty()) {
             emptyHistoryText.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
-            clearAllButton.setEnabled(false);
         } else {
             emptyHistoryText.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
-            clearAllButton.setEnabled(true);
         }
         adapter.updateList(historyList);
     }
@@ -199,43 +195,4 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
                 });
     }
 
-    /**
-     * 全て削除の確認ダイアログを表示
-     */
-    private void showClearHistoryConfirmation() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.dialog_clear_history_title)
-                .setMessage(R.string.dialog_clear_history_message)
-                .setPositiveButton(R.string.dialog_confirm, (dialog, which) -> clearAllHistory())
-                .setNegativeButton(R.string.dialog_cancel, null)
-                .show();
-    }
-
-    /**
-     * Firestoreから全ての履歴を削除
-     */
-    private void clearAllHistory() {
-        clearAllButton.setEnabled(false);
-        deleteNextBatch();
-    }
-
-    private void deleteNextBatch() {
-        historyRef.limit(400).get().addOnSuccessListener(documents -> {
-            if (documents.isEmpty()) {
-                Toast.makeText(this, R.string.toast_history_cleared, Toast.LENGTH_SHORT).show();
-                loadHistory();
-                return;
-            }
-            db.runBatch(batch -> {
-                for (QueryDocumentSnapshot document : documents) batch.delete(document.getReference());
-            }).addOnSuccessListener(unused -> deleteNextBatch())
-              .addOnFailureListener(error -> deletionFailed());
-        }).addOnFailureListener(error -> deletionFailed());
-    }
-
-    private void deletionFailed() {
-        clearAllButton.setEnabled(true);
-        Toast.makeText(this, "削除を完了できませんでした。残っている履歴を確認して再試行してください。", Toast.LENGTH_LONG).show();
-        loadHistory();
-    }
 }

@@ -31,7 +31,7 @@ jobs:
 
       - name: 4. Worker依存関係をインストール
         working-directory: cloudflare-worker
-        run: npm install
+        run: npm ci
 
       - name: 5. Cloudflare Workerをデプロイ
         working-directory: cloudflare-worker
@@ -85,7 +85,7 @@ jobs:
       - name: 8. Android SDKをセットアップ
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34 build-tools;34.0.0'
+          packages: 'platforms;android-36 build-tools;35.0.0'
 
       - name: 9. 使用可能なAPKをビルド
         shell: bash

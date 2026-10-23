@@ -1,41 +1,28 @@
 package com.example.liefantidia2;
 
 import android.os.Bundle;
-import android.view.View;
 import android.widget.TextView;
-
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
 
-/**
- * AI接続情報を表示する画面。
- * LLMのAPIキーは端末ではなくCloudflare Worker側で管理する。
- */
 public class SettingsActivity extends AppCompatActivity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
-
-        View backButton = findViewById(R.id.button_back);
-        if (backButton != null) {
-            backButton.setOnClickListener(v -> finish());
-        }
-
-        TextView status = findViewById(R.id.text_ai_status);
-        TextView endpoint = findViewById(R.id.text_ai_endpoint);
-
-        AiProxyClient client = new AiProxyClient();
-        if (status != null) {
-            status.setText(client.isConfigured()
-                    ? "AIクラウド接続: 設定済み"
-                    : "AIクラウド接続: 未設定");
-        }
-
-        if (endpoint != null) {
-            endpoint.setText(client.isConfigured()
-                    ? "ユーザーによるAPIキー入力は不要です。\nGroq / Gemini / Workers AI はサーバー側で自動切り替えされます。"
-                    : "AI_PROXY_URL をCloudflare WorkerのURLに設定してください。");
-        }
+        WindowInsetsHelper.apply(this);
+        findViewById(R.id.button_back).setOnClickListener(v -> finish());
+        ((TextView) findViewById(R.id.text_version)).setText("Version " + BuildConfig.VERSION_NAME);
+        findViewById(R.id.button_privacy).setOnClickListener(v -> {
+            try (java.io.InputStream input = getAssets().open("privacy.txt")) {
+                java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[4096];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                new AlertDialog.Builder(this).setTitle("プライバシーポリシー")
+                    .setMessage(output.toString("UTF-8")).setPositiveButton("閉じる", null).show();
+            } catch (java.io.IOException e) {
+                android.widget.Toast.makeText(this, "表示できませんでした。もう一度お試しください。", android.widget.Toast.LENGTH_LONG).show();
+            }
+        });
     }
 }

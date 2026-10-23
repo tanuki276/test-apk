@@ -32,7 +32,7 @@ jobs:
       # ----------------------------------------------------
       - name: リリースAPKのビルド (assembleRelease)
         # エンドユーザー向けの配布物（APK）を生成するタスクを実行
-        run: ./gradlew assembleRelease --stacktrace --info
+        run: ./gradlew assembleRelease -PAI_PROXY_URL="${{ vars.AI_PROXY_URL }}" --stacktrace --info
 
       # ----------------------------------------------------
       # 成果物のアップロード

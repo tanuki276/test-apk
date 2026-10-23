@@ -1,3 +1,4 @@
+export { GenerationBudget } from "./budget.js";
 import { decodeProtectedHeader, importX509, jwtVerify } from "jose";
 
 const FIREBASE_CERTS_URL =
@@ -11,15 +12,7 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/health") {
-      return json({
-        ok: true,
-        service: "liefantidia2-ai-router",
-        providers: {
-          groq: Boolean(env.GROQ_API_KEY),
-          gemini: Boolean(env.GEMINI_API_KEY),
-          workers: Boolean(env.AI),
-        },
-      });
+      return json({ ok: true });
     }
 
     if (request.method !== "POST" || url.pathname !== "/generate-recipe") {
@@ -27,8 +20,34 @@ export default {
     }
 
     try {
-      const uid = await verifyFirebaseRequest(request, env.FIREBASE_PROJECT_ID);
-      const body = await request.json();
+      const uid = await verifyFirebaseRequest(request, env.FIREBASE_PROJECT_ID).catch(() => {
+        throw new Error("AUTH_INVALID");
+      });
+      // Bound the body before buffering/parsing it, including chunked requests.
+      const reader = request.body?.getReader();
+      if (!reader) return json({ error: "入力内容を確認してください。" }, 400);
+      const chunks = [];
+      let size = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > 32768) {
+          await reader.cancel();
+          return json({ error: "入力が長すぎます。" }, 413);
+        }
+        chunks.push(value);
+      }
+      const bytes = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+      let body;
+      try { body = JSON.parse(new TextDecoder().decode(bytes)); }
+      catch { return json({ error: "入力内容を確認してください。" }, 400); }
+      if (typeof body?.ingredients !== "string" ||
+          (body.constraints !== undefined && typeof body.constraints !== "string")) {
+        return json({ error: "入力内容を確認してください。" }, 400);
+      }
       const ingredients = String(body?.ingredients || "").trim();
       const constraints = String(body?.constraints || "").trim();
 
@@ -40,13 +59,20 @@ export default {
         return json({ error: "入力が長すぎます。" }, 400);
       }
 
+      // One durable coordinator provides atomic, global admission limits.
+      if (!env.GENERATION_BUDGET) return json({ error: "しばらくしてから再試行してください。" }, 503);
+      const budget = env.GENERATION_BUDGET.get(env.GENERATION_BUDGET.idFromName("generation-budget"));
+      const admission = await budget.fetch("https://budget/admit", {
+        method: "POST", body: JSON.stringify({ uid }),
+      });
+      if (!admission.ok) return new Response(admission.body, { status: admission.status, headers: admission.headers });
+
       const prompt = buildRecipePrompt(ingredients, constraints);
-      const order = String(env.PROVIDER_ORDER || "groq,gemini,workers")
+      const order = [...new Set(String(env.PROVIDER_ORDER || "groq,gemini,workers")
         .split(",")
         .map((v) => v.trim().toLowerCase())
-        .filter(Boolean);
+        .filter(v => ["groq", "gemini", "workers"].includes(v)))];
 
-      const failures = [];
 
       for (const provider of order) {
         try {
@@ -59,28 +85,19 @@ export default {
           } else if (provider === "workers" && env.AI) {
             recipe = await callWorkersAI(env, prompt);
           } else {
-            failures.push(`${provider}: not configured`);
             continue;
           }
 
           if (recipe && recipe.trim()) {
-            return json({ recipe: recipe.trim(), provider, uid });
+            return json({ recipe: recipe.trim() });
           }
 
-          failures.push(`${provider}: empty response`);
         } catch (error) {
-          console.error(`Provider ${provider} failed`, error);
-          failures.push(`${provider}: ${safeMessage(error)}`);
+          console.error(`Provider ${provider} failed`);
         }
       }
 
-      return json(
-        {
-          error: "現在利用できるAIプロバイダがありません。しばらくしてから再試行してください。",
-          details: failures,
-        },
-        503,
-      );
+      return json({ error: "ただいま混み合っています。しばらくしてから再試行してください。" }, 503);
     } catch (error) {
       const message = safeMessage(error);
       const status = message.startsWith("AUTH_") ? 401 : 500;
@@ -129,6 +146,7 @@ async function callGroq(env, prompt) {
       temperature: 0.7,
       max_completion_tokens: 1400,
     }),
+    signal: AbortSignal.timeout(25000),
   });
 
   if (!response.ok) {
@@ -145,6 +163,7 @@ async function callGemini(env, prompt) {
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
     {
       method: "POST",
+      signal: AbortSignal.timeout(25000),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
@@ -168,6 +187,7 @@ async function callGemini(env, prompt) {
 async function callWorkersAI(env, prompt) {
   const model = env.WORKERS_AI_MODEL || "@cf/google/gemma-4-26b-a4b-it";
   const result = await env.AI.run(model, {
+    max_tokens: 1400,
     messages: [
       {
         role: "system",

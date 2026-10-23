@@ -27,6 +27,8 @@
             android:id="@+id/button_back"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
             android:src="@drawable/ic_arrow_back"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="戻る"
@@ -42,16 +44,6 @@
             android:textColor="#333333"
             android:layout_marginStart="8dp"/>
 
-        <!-- R.id.button_clear_history: 全て削除ボタン (今回は個別に加えて残します) -->
-        <Button
-            android:id="@+id/button_clear_history"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/history_clear_button"
-            android:backgroundTint="#D32F2F"
-            android:textColor="@android:color/white"
-            android:minHeight="0dp"
-            android:padding="8dp"/>
     </LinearLayout>
 
     <!-- 2. レシピ履歴一覧 (RecyclerView) -->

@@ -33,6 +33,7 @@ public class AiProxyClient {
 
     public AiProxyClient() {
         client = new OkHttpClient.Builder()
+                .retryOnConnectionFailure(false)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(90, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
@@ -68,18 +69,18 @@ public class AiProxyClient {
         final long requestId = generation.incrementAndGet();
 
         if (!isConfigured()) {
-            failAndComplete(requestId, callback, "AIサーバーURLが未設定です。");
+            failAndComplete(requestId, callback, "現在サービスを利用できません。");
             return;
         }
         if (user == null) {
-            failAndComplete(requestId, callback, "Firebase認証が完了していません。");
+            failAndComplete(requestId, callback, "認証に失敗しました。アプリを開き直してください。");
             return;
         }
 
         user.getIdToken(false).addOnCompleteListener(task -> {
             if (!isCurrent(requestId)) return;
             if (!task.isSuccessful() || task.getResult() == null || TextUtils.isEmpty(task.getResult().getToken())) {
-                failAndComplete(requestId, callback, "認証トークンを取得できませんでした。");
+                failAndComplete(requestId, callback, "認証に失敗しました。通信を確認してもう一度お試しください。");
                 return;
             }
 
@@ -131,7 +132,7 @@ public class AiProxyClient {
                         } catch (Exception e) {
                             if (isCurrent(requestId)) {
                                 Log.e(TAG, "Failed to process Worker response", e);
-                                callback.onFailure("AIレスポンスの処理に失敗しました。");
+                                callback.onFailure("レシピを受け取れませんでした。もう一度お試しください。");
                             }
                         } finally {
                             clearActive(completedCall);
@@ -140,7 +141,7 @@ public class AiProxyClient {
                     }
                 });
             } catch (JSONException | IllegalArgumentException e) {
-                failAndComplete(requestId, callback, "リクエストの作成に失敗しました。");
+                failAndComplete(requestId, callback, "生成を開始できませんでした。もう一度お試しください。");
             }
         });
     }
@@ -160,13 +161,10 @@ public class AiProxyClient {
     }
 
     private String parseError(String responseBody, int statusCode) {
-        try {
-            JSONObject json = new JSONObject(responseBody);
-            String error = json.optString("error", "").trim();
-            if (!error.isEmpty()) return error;
-        } catch (Exception ignored) {
-            // Stable fallback below.
-        }
-        return "AIサーバーエラー (HTTP " + statusCode + ")";
+        if (statusCode == 401 || statusCode == 403) return "認証に失敗しました。アプリを開き直してください。";
+        if (statusCode == 429) return "利用が集中しています。少し待ってからもう一度お試しください。";
+        if (statusCode >= 500) return "ただいま混み合っています。しばらくしてからもう一度お試しください。";
+        if (statusCode == 400 || statusCode == 413) return "入力内容が長すぎるか、正しくありません。食材と条件を確認してください。";
+        return "生成できませんでした。もう一度お試しください。";
     }
 }

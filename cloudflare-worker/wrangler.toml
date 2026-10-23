@@ -11,3 +11,14 @@ PROVIDER_ORDER = "groq,gemini,workers"
 GROQ_MODEL = "openai/gpt-oss-20b"
 GEMINI_MODEL = "gemini-3.8-flash"
 WORKERS_AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
+
+USER_DAILY_LIMIT = "20"
+GLOBAL_DAILY_LIMIT = "500"
+
+[[durable_objects.bindings]]
+name = "GENERATION_BUDGET"
+class_name = "GenerationBudget"
+
+[[migrations]]
+tag = "v1-generation-budget"
+new_sqlite_classes = ["GenerationBudget"]

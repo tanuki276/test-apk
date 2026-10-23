@@ -20,6 +20,8 @@
             android:id="@+id/button_back"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
             android:src="@drawable/ic_arrow_back"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="戻る"
@@ -35,34 +37,10 @@
             android:layout_marginStart="8dp"/>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/text_ai_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="AIクラウド接続: 確認中"
-        android:textColor="#1B5E20"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:padding="16dp"
-        android:background="@drawable/rounded_success_bg"
-        android:layout_marginBottom="16dp"/>
-
-    <TextView
-        android:id="@+id/text_ai_endpoint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/settings_description"
-        android:textColor="#444444"
-        android:textSize="15sp"
-        android:lineSpacingExtra="4dp"
-        android:layout_marginBottom="20dp"/>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/security_note"
-        android:textColor="#666666"
-        android:textSize="13sp"
-        android:lineSpacingExtra="3dp"/>
-
+    <TextView android:id="@+id/text_version" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textSize="18sp" android:padding="16dp" />
+    <Button android:id="@+id/button_privacy" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:minHeight="48dp" android:text="プライバシーポリシー" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:padding="16dp" android:text="レシピはAIが作成します。アレルギーや食材の加熱・保存方法は、ご自身でも確認してください。" />
 </LinearLayout>

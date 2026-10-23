@@ -27,7 +27,7 @@ jobs:
       - name: 3. Android SDKのセットアップ
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34 build-tools;34.0.0'
+          packages: 'platforms;android-36 build-tools;35.0.0'
 
       - name: 4. gradlewに実行権限を付与
         run: chmod +x ./gradlew
