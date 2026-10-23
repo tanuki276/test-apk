@@ -100,6 +100,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (auth != null) {
+            AccountController.get(this).state().observe(this, state -> updateGenerationAvailability());
             initializeFirebaseAuth();
         } else {
             isAuthInitialized.set(true);
