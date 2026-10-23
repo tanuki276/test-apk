@@ -31,5 +31,5 @@ jobs:
           java-version: '21'
       - run: npm ci
         working-directory: tests/firestore
-      - run: npx firebase emulators:exec --project demo-cookai --only firestore --config ../../firebase.json 'npm test'
+      - run: npx firebase emulators:exec --project demo-cookai --only auth,firestore --config ../../firebase.json 'npm test'
         working-directory: tests/firestore

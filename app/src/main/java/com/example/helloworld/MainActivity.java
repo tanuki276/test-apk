@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private AiProxyClient apiClient;
     private FirebaseAuth auth;
     private HistoryManager historyManager;
+    private String historyOwnerUid;
     private final AtomicBoolean isAuthInitialized = new AtomicBoolean(false);
     private FirebaseAuth.AuthStateListener authListener;
 
@@ -81,6 +82,7 @@ public class MainActivity extends AppCompatActivity {
         if (shareRecipeButton != null) shareRecipeButton.setOnClickListener(v -> shareRecipe());
 
         if (savedInstanceState != null) {
+            historyOwnerUid = savedInstanceState.getString("historyOwnerUid");
             lastRecipe = savedInstanceState.getString("recipe", "");
             if (!lastRecipe.isEmpty() && recipeOutputText != null) {
                 recipeOutputText.setText(lastRecipe);
@@ -116,6 +118,15 @@ public class MainActivity extends AppCompatActivity {
             if (destroyed) return;
 
             FirebaseUser user = firebaseAuth.getCurrentUser();
+            String currentUid = user == null ? null : user.getUid();
+            if (!java.util.Objects.equals(historyOwnerUid, currentUid)) {
+                if (generating) stopGeneration();
+                historyManager = null;
+                historyOwnerUid = currentUid;
+                lastRecipe = "";
+                recipeOutputText.setText(R.string.text_recipe_initial);
+                updateRecipeActions();
+            }
             if (user != null) {
                 isAuthInitialized.set(true);
                 if (historyManager == null) {
@@ -220,6 +231,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle state) {
         state.putString("recipe", lastRecipe);
+        state.putString("historyOwnerUid", historyOwnerUid);
         super.onSaveInstanceState(state);
     }
 
@@ -235,8 +247,8 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void openHistory() {
-        if (generating) {
-            Toast.makeText(this, "レシピ生成が完了してから履歴を開いてください。", Toast.LENGTH_SHORT).show();
+        if (generating || (auth != null && AccountController.get(this).busy())) {
+            Toast.makeText(this, "処理が完了してから履歴を開いてください。", Toast.LENGTH_SHORT).show();
             return;
         }
         if (!isAuthInitialized.get() || auth == null || auth.getCurrentUser() == null || historyManager == null) {
@@ -250,6 +262,14 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
+        if (auth != null && auth.getCurrentUser() != null &&
+                !java.util.Objects.equals(historyOwnerUid, auth.getCurrentUser().getUid())) {
+            historyManager = null;
+            historyOwnerUid = auth.getCurrentUser().getUid();
+            lastRecipe = "";
+            recipeOutputText.setText(R.string.text_recipe_initial);
+            updateRecipeActions();
+        }
         if (auth != null && auth.getCurrentUser() != null && historyManager == null) {
             try {
                 historyManager = new HistoryManager(this);
@@ -300,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
 
         boolean proxyReady = apiClient.isConfigured();
         boolean authReady = isAuthInitialized.get() && auth != null && auth.getCurrentUser() != null;
-        boolean ready = proxyReady && (authReady || isAuthInitialized.get());
+        boolean ready = proxyReady && (authReady || isAuthInitialized.get()) && !(auth != null && AccountController.get(this).busy());
         generateRecipeButton.setEnabled(generating || ready);
         generateRecipeButton.setText(generating ? "停止" : generationFailed ? "もう一度生成する" : "レシピを生成する");
 
@@ -319,11 +339,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openSettings() {
+        if (generating) {
+            Toast.makeText(this, "生成を停止してから設定を開いてください。", Toast.LENGTH_SHORT).show();
+            return;
+        }
         startActivity(new Intent(this, SettingsActivity.class));
     }
 
     private void startRecipeGeneration() {
-        if (generating) return;
+        if (generating || (auth != null && AccountController.get(this).busy())) return;
         if (generateRecipeButton == null || loadingIndicator == null || recipeOutputText == null || ingredientInput == null) {
             Toast.makeText(this, "アプリの初期化に失敗しています。", Toast.LENGTH_LONG).show();
             return;

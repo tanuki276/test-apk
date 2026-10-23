@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:padding="16dp"
     android:background="#F5F5F5"
+    android:fillViewport="true"
     tools:context=".SettingsActivity">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -37,10 +38,25 @@
             android:layout_marginStart="8dp"/>
     </LinearLayout>
 
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="アカウント" android:textStyle="bold" android:textSize="20sp" android:paddingBottom="12dp" />
+    <TextView android:id="@+id/text_account_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:paddingBottom="12dp" />
+    <LinearLayout android:id="@+id/account_credentials" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <EditText android:id="@+id/edit_account_email" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:hint="メールアドレス" android:inputType="textEmailAddress" android:autofillHints="emailAddress" android:maxLength="254" />
+        <EditText android:id="@+id/edit_account_password" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:hint="パスワード（登録時は6文字以上）" android:inputType="textPassword" android:autofillHints="password" android:saveEnabled="false" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:text="登録すると今の履歴をそのまま引き継ぎます。登録済みのアカウントへログインする場合も、この端末のゲスト履歴を引き継ぎます。登録前にプライバシーポリシーをご確認ください。" />
+        <Button android:id="@+id/button_register" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="登録して履歴を引き継ぐ" />
+        <Button android:id="@+id/button_login" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="ログイン" />
+        <Button android:id="@+id/button_reset_password" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="パスワードを忘れた場合" />
+    </LinearLayout>
+    <Button android:id="@+id/button_logout" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="ログアウト" android:visibility="gone" />
+    <Button android:id="@+id/button_delete_account" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="アカウントと履歴を削除" android:visibility="gone" />
+    <ProgressBar android:id="@+id/progress_account" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" android:visibility="gone" />
+    <TextView android:id="@+id/text_account_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:accessibilityLiveRegion="polite" />
     <TextView android:id="@+id/text_version" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:textSize="18sp" android:padding="16dp" />
     <Button android:id="@+id/button_privacy" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:minHeight="48dp" android:text="プライバシーポリシー" />
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
         android:padding="16dp" android:text="レシピはAIが作成します。アレルギーや食材の加熱・保存方法は、ご自身でも確認してください。" />
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>
