@@ -1,0 +1,10 @@
+.gradle/
+**/build/
+**/node_modules/
+**/.wrangler/
+local.properties
+*.jks
+*.keystore
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

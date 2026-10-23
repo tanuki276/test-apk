@@ -24,6 +24,7 @@ public class HistoryManager {
 
     private static final String FIRESTORE_PATH_FORMAT = "artifacts/%s/users/%s/history";
 
+    private final android.content.Context context;
     private final FirebaseFirestore db;
     private final String userId;
     private final String appId;
@@ -34,6 +35,7 @@ public class HistoryManager {
      */
     public HistoryManager(Context context) {
         // Firestoreインスタンスはシングルトンで取得
+        this.context = context.getApplicationContext();
         this.db = FirebaseFirestore.getInstance();
         this.appId = getAppId(context);
 
@@ -42,7 +44,6 @@ public class HistoryManager {
         if (user == null) throw new IllegalStateException("Authentication required for history");
         this.userId = user.getUid();
 
-        Log.d(TAG, "HistoryManager initialized for App ID: " + appId + ", User ID: " + userId);
     }
 
     /**
@@ -80,7 +81,10 @@ public class HistoryManager {
         // Firestoreへの追加処理
         getHistoryCollection().add(history)
                 .addOnSuccessListener(docRef -> Log.i(TAG, "Recipe saved successfully. Doc ID: " + docRef.getId()))
-                .addOnFailureListener(e -> Log.e(TAG, "Error saving recipe to Firestore", e));
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error saving recipe to Firestore", e);
+                    android.widget.Toast.makeText(context, "履歴を保存できませんでした。必要なレシピはコピーして保存してください。", android.widget.Toast.LENGTH_LONG).show();
+                });
     }
 
     /**

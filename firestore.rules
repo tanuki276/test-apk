@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/liefantidia2/users/{userId}/history/{recipeId} {
+      function owner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function validRecipe() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['id', 'recipeTitle', 'ingredientsWithUsage', 'allConstraints', 'recipeContent', 'timestamp'])
+          && d.keys().hasAll(['recipeTitle', 'ingredientsWithUsage', 'allConstraints', 'recipeContent', 'timestamp'])
+          && d.recipeTitle is string && d.recipeTitle.size() <= 200
+          && d.ingredientsWithUsage is string && d.ingredientsWithUsage.size() <= 2000
+          && d.allConstraints is string && d.allConstraints.size() <= 4000
+          && d.recipeContent is string && d.recipeContent.size() <= 100000
+          && d.timestamp is int && d.timestamp > 0;
+      }
+      allow read, delete: if owner();
+      allow create, update: if owner() && validRecipe();
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

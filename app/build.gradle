@@ -4,23 +4,33 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
+// Public application endpoint, confirmed from the successful deployment workflow.
+// Keep overrides for staging and deployments; blank CI variables must not disable generation.
+def localConfig = new Properties()
+def localConfigFile = rootProject.file("local.properties")
+if (localConfigFile.exists()) localConfigFile.withInputStream { localConfig.load(it) }
+def aiProxyUrl = [providers.gradleProperty("AI_PROXY_URL").orNull,
+                  providers.environmentVariable("AI_PROXY_URL").orNull,
+                  localConfig.getProperty("AI_PROXY_URL"),
+                  "https://liefantidia2-ai-router.light06120602.workers.dev/generate-recipe"]
+        .find { it != null && !it.trim().isEmpty() }.trim()
+
 android {
     namespace 'com.example.liefantidia2'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.example.liefantidia2"
         minSdk 26
-        targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        targetSdk 36
+        versionCode 5
+        versionName "1.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // 本番URLは local.properties または CI の -PAI_PROXY_URL で差し替える。
+        // 本番URLは CI の -PAI_PROXY_URL または環境変数で指定する。
         // 秘密鍵は絶対にAPKへ入れない。
-        def aiProxyUrl = project.findProperty("AI_PROXY_URL") ?: "https://example.workers.dev/generate-recipe"
-        buildConfigField "String", "AI_PROXY_URL", "\"${aiProxyUrl}\""
+        buildConfigField "String", "AI_PROXY_URL", groovy.json.JsonOutput.toJson(aiProxyUrl)
     }
 
     buildTypes {
@@ -43,6 +53,7 @@ android {
 dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.6.2'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
@@ -58,4 +69,16 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+tasks.configureEach { task ->
+    if (task.name == "preBuild") {
+        task.doFirst {
+            def endpoint = new URI(aiProxyUrl)
+            if (endpoint.scheme != "https" || !endpoint.host || endpoint.host == "example.workers.dev"
+                    || endpoint.path != "/generate-recipe" || endpoint.userInfo || endpoint.fragment || endpoint.query) {
+                throw new GradleException("Build requires a valid HTTPS AI_PROXY_URL ending in /generate-recipe")
+            }
+        }
+    }
 }

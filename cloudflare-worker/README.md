@@ -55,3 +55,13 @@ WORKERS_AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
   "constraints": "30分以内、1000円以内"
 }
 ```
+
+## 生成回数制限
+
+SQLite Durable Object `GENERATION_BUDGET` の単一コーディネーターで原子的に判定します。
+UIDごと15秒間隔・UTC日20回、全UID合計UTC日500回。`USER_DAILY_LIMIT` / `GLOBAL_DAILY_LIMIT` で変更できます。
+失敗や端末での停止も回数に含みます。最大3種類のプロバイダに各1回試すため、全体500生成は最大1500プロバイダ呼び出しです。
+金額の保証ではないため、提供元にも利用上限を設定してください。日次カウンターとUIDは翌日の利用時に置き換えます。
+バインディングなし・ストレージ障害時はAIを呼ばず失敗します。
+
+テスト: `npm test`。設定検証: `npx wrangler deploy --dry-run`。

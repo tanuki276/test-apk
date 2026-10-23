@@ -7,13 +7,11 @@
     android:layout_margin="8dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="4dp">
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
-
         <TextView
             android:id="@+id/text_recipe_title"
             android:layout_width="match_parent"
@@ -22,7 +20,6 @@
             android:textStyle="bold"
             android:textColor="@android:color/black"
             android:text="Placeholder Recipe Title" />
-
         <TextView
             android:id="@+id/text_recipe_date"
             android:layout_width="match_parent"
@@ -30,7 +27,6 @@
             android:layout_marginTop="4dp"
             android:textSize="12sp"
             android:text="2025/11/26 10:00:00" />
-
         <TextView
             android:id="@+id/text_recipe_ingredients"
             android:layout_width="match_parent"
@@ -39,13 +35,11 @@
             android:maxLines="2"
             android:ellipsize="end"
             android:text="Ingredients: Chicken, Soy Sauce, Sugar, Ginger..." />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="16dp">
-
             <Button
                 android:id="@+id/button_show_recipe"
                 android:layout_width="0dp"
@@ -53,15 +47,13 @@
                 android:layout_weight="1"
                 android:text="表示"
                 android:layout_marginEnd="8dp" />
-
             <Button
                 android:id="@+id/button_download"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="ダウンロード"
+                android:text="保存"
                 android:layout_marginEnd="8dp" />
-
             <ImageButton
                 android:id="@+id/button_delete_recipe"
                 android:layout_width="48dp"
@@ -70,7 +62,6 @@
                 android:contentDescription="削除"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:tint="@android:color/holo_red_dark" />
-
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>
