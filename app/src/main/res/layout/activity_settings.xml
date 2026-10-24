@@ -7,6 +7,24 @@
         </LinearLayout>
         <com.google.android.material.card.MaterialCardView style="@style/CookSection">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/CookTitle" android:text="アカウント" android:drawableStart="@drawable/ic_cook_user"/>
+                <TextView android:id="@+id/text_account_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#20372F" android:paddingBottom="12dp"/>
+                <LinearLayout android:id="@+id/account_credentials" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <EditText android:id="@+id/edit_account_email" style="@style/CookInput" android:hint="メールアドレス" android:inputType="textEmailAddress" android:autofillHints="emailAddress" android:maxLength="254"/>
+                    <EditText android:id="@+id/edit_account_password" style="@style/CookInput" android:layout_marginTop="12dp" android:hint="パスワード（登録時は6文字以上）" android:inputType="textPassword" android:autofillHints="password" android:saveEnabled="false"/>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="初めての方：メール登録で今のゲスト履歴を保存します。\n登録済みの方：ログインすると以前の履歴と今のゲスト履歴をまとめて使えます。\n再インストール後も、同じメールアドレスでログインしてください。未登録のままアプリを削除した場合、ゲスト履歴は復元できません。\n登録前にプライバシーポリシーをご確認ください。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp" android:layout_marginTop="12dp"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_register" style="@style/CookPrimaryButton" android:text="登録して履歴を引き継ぐ" app:icon="@drawable/ic_cook_user"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_login" style="@style/CookOutlineButton" android:text="ログインして履歴を引き継ぐ" app:icon="@drawable/ic_cook_user"/>
+                    <com.google.android.material.button.MaterialButton android:id="@+id/button_reset_password" style="@style/CookOutlineButton" android:text="パスワードを忘れた場合" app:icon="@drawable/ic_cook_shield"/>
+                </LinearLayout>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_logout" style="@style/CookOutlineButton" android:text="ログアウト" app:icon="@drawable/ic_cook_user" android:visibility="gone"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_delete_account" style="@style/CookOutlineButton" android:text="アカウントと履歴を削除" app:icon="@drawable/ic_cook_shield" android:visibility="gone"/>
+                <ProgressBar android:id="@+id/progress_account" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center_horizontal" android:visibility="gone"/>
+                <TextView android:id="@+id/text_account_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="12dp" android:textColor="#4D6259" android:accessibilityLiveRegion="polite"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
                 <TextView style="@style/CookTitle" android:text="いつもの調理設定" android:drawableStart="@drawable/ic_cook_pot"/>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="保存した内容を、毎回のレシピ生成に反映します。この端末にアカウントごとに保存されます。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp"/>
                 <TextView style="@style/CookLabel" android:text="アレルギー・避けたい食材" android:drawableStart="@drawable/ic_cook_shield" android:drawablePadding="10dp"/>
@@ -18,31 +36,6 @@
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="未入力の項目は指定なし。「なし」と書くと使用しない条件になります。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp" android:layout_marginTop="12dp"/>
                 <com.google.android.material.button.MaterialButton android:id="@+id/button_save_cooking" style="@style/CookPrimaryButton" android:text="調理設定を保存" app:icon="@drawable/ic_cook_save" android:layout_marginTop="12dp"/>
                 <TextView android:id="@+id/text_preset_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="14sp" android:textColor="#24594B" android:accessibilityLiveRegion="polite" android:paddingTop="8dp"/>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                <TextView style="@style/CookTitle" android:text="アカウント" android:drawableStart="@drawable/ic_cook_user"/>
-                <TextView android:id="@+id/text_account_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:textColor="#20372F" android:paddingBottom="12dp"/>
-                <LinearLayout android:id="@+id/account_credentials" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <EditText android:id="@+id/edit_account_email" style="@style/CookInput" android:hint="メールアドレス" android:inputType="textEmailAddress" android:autofillHints="emailAddress" android:maxLength="254"/>
-                    <EditText android:id="@+id/edit_account_password" style="@style/CookInput" android:layout_marginTop="12dp" android:hint="パスワード（登録時は6文字以上）" android:inputType="textPassword" android:autofillHints="password" android:saveEnabled="false"/>
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="登録すると今の履歴を引き継げます。登録前にプライバシーポリシーをご確認ください。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp" android:layout_marginTop="12dp"/>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/button_register" style="@style/CookPrimaryButton" android:text="登録して履歴を引き継ぐ" app:icon="@drawable/ic_cook_user"/>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/button_login" style="@style/CookOutlineButton" android:text="ログイン" app:icon="@drawable/ic_cook_user"/>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/button_reset_password" style="@style/CookOutlineButton" android:text="パスワードを忘れた場合" app:icon="@drawable/ic_cook_shield"/>
-                </LinearLayout>
-                <LinearLayout android:id="@+id/guest_recovery_actions" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="メール登録せずに履歴を残す場合は、復元コードを発行して安全な場所に控えてください。コードがないと再インストール後に復元できません。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp"/>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/button_enable_recovery" style="@style/CookOutlineButton" android:text="ゲスト用の復元コードを発行" app:icon="@drawable/ic_cook_shield"/>
-                    <EditText android:id="@+id/edit_recovery_code" style="@style/CookInput" android:hint="控えた復元コード" android:inputType="textVisiblePassword|textCapCharacters" android:saveEnabled="false" android:layout_marginTop="12dp"/>
-                    <com.google.android.material.button.MaterialButton android:id="@+id/button_restore_guest" style="@style/CookOutlineButton" android:text="復元コードで履歴を戻す" app:icon="@drawable/ic_cook_history"/>
-                </LinearLayout>
-                <com.google.android.material.button.MaterialButton android:id="@+id/button_show_recovery" style="@style/CookOutlineButton" android:text="復元コードを表示・コピー" app:icon="@drawable/ic_cook_copy" android:visibility="gone"/>
-                <com.google.android.material.button.MaterialButton android:id="@+id/button_logout" style="@style/CookOutlineButton" android:text="ログアウト" app:icon="@drawable/ic_cook_user" android:visibility="gone"/>
-                <com.google.android.material.button.MaterialButton android:id="@+id/button_delete_account" style="@style/CookOutlineButton" android:text="アカウントと履歴を削除" app:icon="@drawable/ic_cook_shield" android:visibility="gone"/>
-                <ProgressBar android:id="@+id/progress_account" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center_horizontal" android:visibility="gone"/>
-                <TextView android:id="@+id/text_account_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="12dp" android:textColor="#4D6259" android:accessibilityLiveRegion="polite"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView style="@style/CookSection">

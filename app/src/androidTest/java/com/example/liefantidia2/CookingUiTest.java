@@ -97,38 +97,127 @@ public class CookingUiTest {
             Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
         }
     }
-    @Test public void guestRecoveryCodeRestoresSameHistoryUid() throws Exception {
+    @Test public void loginMergesMultiplePagesWithoutReplacingSavedHistory() throws Exception {
         FirebaseAuth auth = FirebaseAuth.getInstance();
         auth.signOut();
         Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
-        String uid = auth.getCurrentUser().getUid();
         AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
+        String email = "merge-" + System.nanoTime() + "@example.com";
+        String password = "TestPassword123!";
         try {
-            InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::enableGuestRecovery);
-            waitForAccount(controller);
-            assertNotNull(auth.getCurrentUser());
-            assertEquals(uid, auth.getCurrentUser().getUid());
-            assertFalse(auth.getCurrentUser().isAnonymous());
-            String code = GuestRecovery.load(ApplicationProvider.getApplicationContext(), uid);
-            assertTrue(GuestRecovery.valid(code));
-            try (ActivityScenario<SettingsActivity> first = ActivityScenario.launch(SettingsActivity.class)) {
-                onView(withText("ゲストの復元コード")).check(matches(isDisplayed()));
-                onView(withText("閉じる")).perform(click());
-            }
-            try (ActivityScenario<SettingsActivity> again = ActivityScenario.launch(SettingsActivity.class)) {
-                onView(withText("ゲストの復元コード")).check(doesNotExist());
-                onView(withId(R.id.button_show_recovery)).perform(scrollTo()).check(matches(isDisplayed()));
-            }
-            InstrumentationRegistry.getInstrumentation().runOnMainSync(controller::logout);
-            assertNull(auth.getCurrentUser());
-            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> controller.restoreGuest(GuestRecovery.display(code)));
-            waitForAccount(controller);
-            assertNotNull(auth.getCurrentUser());
-            assertEquals(uid, auth.getCurrentUser().getUid());
+            String accountUid = auth.getCurrentUser().getUid();
+            writeRecipes(accountUid, 1, "保存済み");
+            runAccount(controller, () -> controller.register(email, password));
+            assertEquals(accountUid, auth.getCurrentUser().getUid());
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+            String guestUid = auth.getCurrentUser().getUid();
+            writeRecipes(guestUid, 205, "ゲスト");
+            // A failed password must keep the guest session and all its history.
+            runAccount(controller, () -> controller.login(email, "wrong-password"));
+            assertEquals(guestUid, auth.getCurrentUser().getUid());
+            assertEquals(205, Tasks.await(history(guestUid).get(), 30, TimeUnit.SECONDS).size());
+            runAccount(controller, () -> controller.login(email, password));
+            assertEquals(accountUid, auth.getCurrentUser().getUid());
+            assertEquals(206, Tasks.await(history(accountUid).get(com.google.firebase.firestore.Source.SERVER),
+                30, TimeUnit.SECONDS).size());
+            assertEquals("保存済み", Tasks.await(history(accountUid).document("recipe-0").get(),
+                30, TimeUnit.SECONDS).getString("recipeTitle"));
+            // Simulate losing this installation's session. Login restores the same cloud history.
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+            runAccount(controller, () -> controller.login(email, password));
+            assertEquals(accountUid, auth.getCurrentUser().getUid());
+            assertEquals(206, Tasks.await(history(accountUid).get(com.google.firebase.firestore.Source.SERVER),
+                30, TimeUnit.SECONDS).size());
         } finally {
             auth.signOut();
             Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
         }
+    }
+    @Test public void failedMigrationKeepsGuestAndCanBeRetried() throws Exception {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.signOut();
+        Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
+        String email = "retry-" + System.nanoTime() + "@example.com";
+        String password = "TestPassword123!";
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        try {
+            runAccount(controller, () -> controller.register(email, password));
+            String accountUid = auth.getCurrentUser().getUid();
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+            String guestUid = auth.getCurrentUser().getUid();
+            writeRecipes(guestUid, 1, "再試行");
+            Tasks.await(db.disableNetwork(), 30, TimeUnit.SECONDS);
+            runAccount(controller, () -> controller.login(email, password));
+            assertEquals(guestUid, auth.getCurrentUser().getUid());
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() ->
+                assertTrue(controller.state().getValue().migrationBlocked));
+            Tasks.await(db.enableNetwork(), 30, TimeUnit.SECONDS);
+            runAccount(controller, () -> controller.login(email, password));
+            assertEquals(accountUid, auth.getCurrentUser().getUid());
+            assertEquals(1, Tasks.await(history(accountUid).get(com.google.firebase.firestore.Source.SERVER),
+                30, TimeUnit.SECONDS).size());
+        } finally {
+            Tasks.await(db.enableNetwork(), 30, TimeUnit.SECONDS);
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        }
+    }
+    @Test public void loggedOutSettingsAllowsLoginAndRegistration() throws Exception {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.signOut();
+        try (ActivityScenario<SettingsActivity> screen = ActivityScenario.launch(SettingsActivity.class)) {
+            onView(withId(R.id.button_login)).perform(scrollTo()).check(matches(isEnabled()));
+            onView(withId(R.id.button_register)).perform(scrollTo()).check(matches(isEnabled()));
+            screenshot("settings-account");
+        } finally {
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        }
+    }
+    @Test public void oldGuestCanRegisterWithoutLosingHistory() throws Exception {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.signOut();
+        Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
+        try {
+            String guestUid = auth.getCurrentUser().getUid();
+            Tasks.await(auth.getCurrentUser().linkWithCredential(com.google.firebase.auth.EmailAuthProvider
+                .getCredential("recovery-" + System.nanoTime() + "@guest.cookai.invalid", "LegacyPassword123!")),
+                30, TimeUnit.SECONDS);
+            writeRecipes(guestUid, 1, "以前のゲスト");
+            String email = "upgrade-" + System.nanoTime() + "@example.com";
+            runAccount(controller, () -> controller.register(email, "TestPassword123!"));
+            assertEquals(email, auth.getCurrentUser().getEmail());
+            assertFalse(AccountController.isGuest(auth.getCurrentUser()));
+            assertEquals(1, Tasks.await(history(auth.getCurrentUser().getUid()).get(), 30, TimeUnit.SECONDS).size());
+        } finally {
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        }
+    }
+    private com.google.firebase.firestore.CollectionReference history(String uid) {
+        return FirebaseFirestore.getInstance().collection("artifacts/liefantidia2/users/" + uid + "/history");
+    }
+    private void writeRecipes(String uid, int count, String title) throws Exception {
+        // Auth/Firestore start on separate executors. Refresh the new session before seeding,
+        // and allow a cold emulator connection to recover its initial transport backoff.
+        Tasks.await(FirebaseAuth.getInstance().getCurrentUser().getIdToken(true), 30, TimeUnit.SECONDS);
+        com.google.firebase.firestore.WriteBatch batch = FirebaseFirestore.getInstance().batch();
+        Map<String, Object> recipe = new HashMap<>();
+        recipe.put("recipeTitle", title);
+        recipe.put("ingredientsWithUsage", "卵");
+        recipe.put("allConstraints", "簡単");
+        recipe.put("recipeContent", "加熱する");
+        recipe.put("timestamp", System.currentTimeMillis());
+        for (int i = 0; i < count; i++) batch.set(history(uid).document("recipe-" + i), recipe);
+        Tasks.await(batch.commit(), 90, TimeUnit.SECONDS);
+    }
+    private void runAccount(AccountController controller, Runnable action) throws Exception {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(action);
+        waitForAccount(controller);
     }
     @Test public void historySearchFiltersAndClearsAfterLoading() throws Exception {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
