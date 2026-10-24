@@ -29,8 +29,11 @@ public final class AccountController {
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
     private final MutableLiveData<State> state = new MutableLiveData<>(new State(false, ""));
     private FirebaseApp restoreApp;
-    private String recoveryPromptUid;
-    private AccountController(Context context) { this.context = context; }
+    private AccountController(Context context) {
+        this.context = context;
+        // Retire old locally stored credentials; the Firebase session remains valid for migration.
+        context.getSharedPreferences("guest_recovery", Context.MODE_PRIVATE).edit().clear().apply();
+    }
     public LiveData<State> state() { return state; }
     public boolean busy() { return state.getValue() != null && state.getValue().busy; }
     private boolean begin() {
@@ -42,74 +45,64 @@ public final class AccountController {
         if (restoreApp != null) FirebaseAuth.getInstance(restoreApp).signOut();
         state.setValue(new State(false, message));
     }
-    public void register(String email, String password) {
-        if (!begin()) return;
-        FirebaseUser user = auth.getCurrentUser();
-        if (user == null || !user.isAnonymous()) { finish("画面を開き直してお試しください。"); return; }
-        user.linkWithCredential(EmailAuthProvider.getCredential(email, password))
-            .addOnCompleteListener(task -> {
-                if (task.isSuccessful()) finish("登録しました。今の履歴を引き継ぎました。同じメールアドレスでログインすると再インストール後も利用できます。");
-                else finish(error(task.getException()));
-            });
+    /** Older installations may have linked a generated credential. Keep their history accessible. */
+    public static boolean isGuest(FirebaseUser user) {
+        return user != null && (user.isAnonymous() || (user.getEmail() != null
+            && user.getEmail().endsWith("@guest.cookai.invalid")));
     }
-    public void enableGuestRecovery() {
-        if (!begin()) return;
-        FirebaseUser user = auth.getCurrentUser();
-        if (user == null || !user.isAnonymous()) { finish("ゲストで利用中にお試しください。"); return; }
-        String code = GuestRecovery.generate();
-        String uid = user.getUid();
-        user.linkWithCredential(EmailAuthProvider.getCredential(GuestRecovery.email(code), code))
-            .addOnCompleteListener(task -> {
-                if (task.isSuccessful()) {
-                    GuestRecovery.save(context, uid, code);
-                    recoveryPromptUid = uid;
-                    finish("復元コードを発行しました。必ずコピーして安全な場所に保管してください。");
-                } else finish(error(task.getException()));
-            });
-    }
-    public boolean consumeRecoveryPrompt(String uid) {
-        if (uid == null || !uid.equals(recoveryPromptUid)) return false;
-        recoveryPromptUid = null;
-        return true;
-    }
-    public void restoreGuest(String input) {
-        if (!GuestRecovery.valid(input)) {
-            state.setValue(new State(false, "復元コードを確認してください。")); return;
-        }
-        String code = GuestRecovery.normalize(input);
-        login(GuestRecovery.email(code), code);
-    }
-    public void login(String email, String password) {
-        if (!begin()) return;
-        FirebaseUser guest = auth.getCurrentUser();
-        if (guest != null && !guest.isAnonymous()) { finish("すでにログインしています。"); return; }
-        // Validate the destination without losing the guest's access to their own history.
+    private FirebaseAuth destinationAuth() {
         if (restoreApp == null) {
             for (FirebaseApp app : FirebaseApp.getApps(context)) {
                 if (app.getName().equals("account-restore")) restoreApp = app;
             }
             if (restoreApp == null) restoreApp = FirebaseApp.initializeApp(context,
-                    FirebaseApp.getInstance().getOptions(), "account-restore");
+                FirebaseApp.getInstance().getOptions(), "account-restore");
         }
-        FirebaseAuth destinationAuth = FirebaseAuth.getInstance(restoreApp);
-        destinationAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
+        return FirebaseAuth.getInstance(restoreApp);
+    }
+    public void register(String email, String password) {
+        if (!begin()) return;
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener(task ->
+                finish(task.isSuccessful() ? "登録しました。同じメールアドレスで履歴を引き継げます。" : error(task.getException())));
+        } else if (user.isAnonymous()) {
+            user.linkWithCredential(EmailAuthProvider.getCredential(email, password))
+                .addOnCompleteListener(task -> finish(task.isSuccessful()
+                    ? "登録しました。ゲストの履歴を引き継ぎました。再インストール後も同じメールアドレスでログインしてください。"
+                    : error(task.getException())));
+        } else if (isGuest(user)) {
+            // Upgrade an old guest without discarding its currently authenticated session.
+            destinationAuth().createUserWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
+                if (!task.isSuccessful()) { finish(error(task.getException())); return; }
+                completeLogin(user, task.getResult().getUser().getUid(), email, password);
+            });
+        } else finish("すでにログインしています。");
+    }
+    public void login(String email, String password) {
+        if (!begin()) return;
+        FirebaseUser guest = auth.getCurrentUser();
+        if (guest != null && !isGuest(guest)) { finish("すでにログインしています。"); return; }
+        // Validate the destination without losing the guest's access to their own history.
+        destinationAuth().signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
             if (!task.isSuccessful()) { finish(error(task.getException())); return; }
-            String destinationUid = task.getResult().getUser().getUid();
-            Runnable switchAccount = () -> {
-                boolean copied = new CookingPreferencesStore(context).copyIfMissing(
-                    guest == null ? null : guest.getUid(), destinationUid);
-                auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(result -> {
-                    if (!result.isSuccessful()) {
-                        finish("ログインを完了できませんでした。もう一度ログインしてください。"); return;
-                    }
-                    if (GuestRecovery.isRecoveryEmail(email)) GuestRecovery.save(context, destinationUid, password);
-                    finish(copied ? "ログインしました。保存済みの履歴を利用できます。"
-                        : "ログインしました。調理設定を引き継げなかったため、設定画面で確認してください。");
-                });
-            };
-            if (guest == null) { switchAccount.run(); return; }
-            migratePage(guest.getUid(), destinationUid, switchAccount);
+            completeLogin(guest, task.getResult().getUser().getUid(), email, password);
         });
+    }
+    private void completeLogin(FirebaseUser guest, String destinationUid, String email, String password) {
+        Runnable switchAccount = () -> {
+            boolean copied = new CookingPreferencesStore(context).copyIfMissing(
+                guest == null ? null : guest.getUid(), destinationUid);
+            auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(result -> {
+                if (!result.isSuccessful()) {
+                    finish("ログインを完了できませんでした。同じメールアドレスで再試行してください。引き継ぎ済みの履歴は保存されています。"); return;
+                }
+                finish(copied ? "ログインしました。以前の履歴とゲストの履歴をまとめて利用できます。"
+                    : "ログインしました。履歴を引き継ぎました。調理設定は設定画面で確認してください。");
+            });
+        };
+        if (guest == null || guest.getUid().equals(destinationUid)) { switchAccount.run(); return; }
+        migratePage(guest.getUid(), destinationUid, switchAccount);
     }
     private CollectionReference history(FirebaseFirestore db, String uid) {
         return db.collection("artifacts/liefantidia2/users/" + uid + "/history");
@@ -142,16 +135,7 @@ public final class AccountController {
     private void migrationFailed() {
         if (restoreApp != null) FirebaseAuth.getInstance(restoreApp).signOut();
         state.setValue(new State(false,
-            "ログイン情報は確認できましたが、ゲスト履歴の引き継ぎに失敗しました。再試行するか、履歴を引き継がずログインしてください。", true));
-    }
-    /** Explicit opt-out after a failed migration; guest history is not deleted or transferred. */
-    public void loginWithoutGuestHistory(String email, String password) {
-        if (!begin()) return;
-        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(task -> {
-            if (task.isSuccessful() && GuestRecovery.isRecoveryEmail(email))
-                GuestRecovery.save(context, task.getResult().getUser().getUid(), password);
-            finish(task.isSuccessful() ? "ログインしました。ゲスト履歴は引き継がれていません。" : error(task.getException()));
-        });
+            "ログイン情報は確認できましたが、ゲスト履歴の引き継ぎに失敗しました。通信を確認して、同じメールアドレスでログインを再試行してください。履歴を失わないようゲストのままにしています。", true));
     }
     public void resetPassword(String email) {
         if (!begin()) return;
@@ -184,7 +168,7 @@ public final class AccountController {
                 user.delete().addOnCompleteListener(deleted -> {
                     if (deleted.isSuccessful()) {
                         new CookingPreferencesStore(context).delete(user.getUid());
-                        GuestRecovery.remove(context, user.getUid());
+
                         finish("アカウントと履歴を削除しました。");
                     }
                     else deletionFailed();
