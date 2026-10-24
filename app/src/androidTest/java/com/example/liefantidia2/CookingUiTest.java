@@ -202,6 +202,9 @@ public class CookingUiTest {
         return FirebaseFirestore.getInstance().collection("artifacts/liefantidia2/users/" + uid + "/history");
     }
     private void writeRecipes(String uid, int count, String title) throws Exception {
+        // Auth/Firestore start on separate executors. Refresh the new session before seeding,
+        // and allow a cold emulator connection to recover its initial transport backoff.
+        Tasks.await(FirebaseAuth.getInstance().getCurrentUser().getIdToken(true), 30, TimeUnit.SECONDS);
         com.google.firebase.firestore.WriteBatch batch = FirebaseFirestore.getInstance().batch();
         Map<String, Object> recipe = new HashMap<>();
         recipe.put("recipeTitle", title);
@@ -210,7 +213,7 @@ public class CookingUiTest {
         recipe.put("recipeContent", "加熱する");
         recipe.put("timestamp", System.currentTimeMillis());
         for (int i = 0; i < count; i++) batch.set(history(uid).document("recipe-" + i), recipe);
-        Tasks.await(batch.commit(), 30, TimeUnit.SECONDS);
+        Tasks.await(batch.commit(), 90, TimeUnit.SECONDS);
     }
     private void runAccount(AccountController controller, Runnable action) throws Exception {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(action);
