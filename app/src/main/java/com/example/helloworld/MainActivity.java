@@ -4,6 +4,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -42,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinnerTime;
     private Spinner spinnerDiet;
     private CheckBox useAllIngredientsCheckbox;
+    private CheckBox highAccuracyCheckbox;
     private Spinner spinnerType;
     private EditText editInstructions;
 
@@ -66,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
 
         initializeUI();
         loadSpinnerAdapters();
-
         apiClient = new AiProxyClient();
 
         if (settingsButton != null) settingsButton.setOnClickListener(v -> openSettings());
@@ -78,16 +80,13 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState != null) {
             historyOwnerUid = savedInstanceState.getString("historyOwnerUid");
             lastRecipe = savedInstanceState.getString("recipe", "");
-            if (!lastRecipe.isEmpty() && recipeOutputText != null) {
-                recipeOutputText.setText(lastRecipe);
-            }
+            if (highAccuracyCheckbox != null) highAccuracyCheckbox.setChecked(savedInstanceState.getBoolean("highAccuracy", false));
+            if (!lastRecipe.isEmpty() && recipeOutputText != null) recipeOutputText.setText(lastRecipe);
         }
         updateRecipeActions();
 
         try {
-            if (FirebaseApp.getApps(this).isEmpty()) {
-                FirebaseApp.initializeApp(this);
-            }
+            if (FirebaseApp.getApps(this).isEmpty()) FirebaseApp.initializeApp(this);
             auth = FirebaseAuth.getInstance();
         } catch (Exception e) {
             Log.e(TAG, "Firebase initialization failed.", e);
@@ -108,10 +107,8 @@ public class MainActivity extends AppCompatActivity {
             updateGenerationAvailability();
             return;
         }
-
         authListener = firebaseAuth -> {
             if (destroyed) return;
-
             FirebaseUser user = firebaseAuth.getCurrentUser();
             String currentUid = user == null ? null : user.getUid();
             if (!java.util.Objects.equals(historyOwnerUid, currentUid)) {
@@ -126,16 +123,12 @@ public class MainActivity extends AppCompatActivity {
             if (user != null) {
                 isAuthInitialized.set(true);
                 if (historyManager == null) {
-                    try {
-                        historyManager = new HistoryManager(this);
-                    } catch (Exception e) {
-                        Log.e(TAG, "HistoryManager initialization failed.", e);
-                    }
+                    try { historyManager = new HistoryManager(this); }
+                    catch (Exception e) { Log.e(TAG, "HistoryManager initialization failed.", e); }
                 }
                 updateGenerationAvailability();
                 return;
             }
-
             if (!getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
                     || AccountController.get(this).busy()) return;
             firebaseAuth.signInAnonymously().addOnCompleteListener(this, task -> {
@@ -144,11 +137,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.e(TAG, "Anonymous sign-in failed.", task.getException());
                     isAuthInitialized.set(true);
                     updateGenerationAvailability();
-                    Toast.makeText(
-                            MainActivity.this,
-                            "認証に失敗しました。通信を確認してアプリを開き直してください。",
-                            Toast.LENGTH_LONG
-                    ).show();
+                    Toast.makeText(this, "認証に失敗しました。通信を確認してアプリを開き直してください。", Toast.LENGTH_LONG).show();
                 }
             });
         };
@@ -165,7 +154,6 @@ public class MainActivity extends AppCompatActivity {
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
         generationStatus = findViewById(R.id.text_generation_status);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
-
         if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
 
         spinnerDifficulty = findViewById(R.id.spinner_difficulty);
@@ -173,28 +161,17 @@ public class MainActivity extends AppCompatActivity {
         spinnerTime = findViewById(R.id.spinner_time);
         spinnerDiet = findViewById(R.id.spinner_diet);
         useAllIngredientsCheckbox = findViewById(R.id.checkbox_use_all_ingredients);
+        highAccuracyCheckbox = findViewById(R.id.checkbox_high_accuracy);
         spinnerType = findViewById(R.id.spinner_type);
-
         editInstructions = findViewById(R.id.edit_instructions);
     }
 
     private void loadSpinnerAdapters() {
-        int[] arrayIds = {
-                R.array.difficulty_options,
-                R.array.genre_options,
-                R.array.time_options,
-                R.array.dietary_options,
-                R.array.type_options
-        };
+        int[] arrayIds = { R.array.difficulty_options, R.array.genre_options, R.array.time_options, R.array.dietary_options, R.array.type_options };
         Spinner[] spinners = {spinnerDifficulty, spinnerGenre, spinnerTime, spinnerDiet, spinnerType};
-
         for (int i = 0; i < arrayIds.length; i++) {
             if (spinners[i] == null) continue;
-            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
-                    this,
-                    arrayIds[i],
-                    R.layout.spinner_selected
-            );
+            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, arrayIds[i], R.layout.spinner_selected);
             adapter.setDropDownViewResource(R.layout.spinner_dropdown);
             spinners[i].setAdapter(adapter);
         }
@@ -224,19 +201,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle state) {
         state.putString("recipe", lastRecipe);
         state.putString("historyOwnerUid", historyOwnerUid);
+        state.putBoolean("highAccuracy", highAccuracyCheckbox != null && highAccuracyCheckbox.isChecked());
         super.onSaveInstanceState(state);
     }
 
     @Override
     protected void onDestroy() {
         destroyed = true;
-        if (auth != null && authListener != null) {
-            auth.removeAuthStateListener(authListener);
-        }
+        if (auth != null && authListener != null) auth.removeAuthStateListener(authListener);
         if (apiClient != null) apiClient.cancel();
         super.onDestroy();
     }
-
 
     private void openHistory() {
         if (generating || (auth != null && AccountController.get(this).busy())) {
@@ -253,9 +228,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        if (auth != null && auth.getCurrentUser() != null &&
-                !java.util.Objects.equals(historyOwnerUid, auth.getCurrentUser().getUid())) {
+        if (auth != null && auth.getCurrentUser() != null && !java.util.Objects.equals(historyOwnerUid, auth.getCurrentUser().getUid())) {
             historyManager = null;
             historyOwnerUid = auth.getCurrentUser().getUid();
             lastRecipe = "";
@@ -263,16 +236,11 @@ public class MainActivity extends AppCompatActivity {
             updateRecipeActions();
         }
         if (auth != null && auth.getCurrentUser() != null && historyManager == null) {
-            try {
-                historyManager = new HistoryManager(this);
-            } catch (Exception e) {
-                Log.e(TAG, "HistoryManager re-initialization failed.", e);
-            }
+            try { historyManager = new HistoryManager(this); }
+            catch (Exception e) { Log.e(TAG, "HistoryManager re-initialization failed.", e); }
         }
-
         updateGenerationAvailability();
         if (auth != null && auth.getCurrentUser() == null && !AccountController.get(this).busy()) {
-            // Settings may have signed out while this Activity was paused.
             auth.signInAnonymously().addOnCompleteListener(this, task -> {
                 if (!task.isSuccessful()) Log.e(TAG, "Anonymous sign-in failed.", task.getException());
             });
@@ -292,21 +260,13 @@ public class MainActivity extends AppCompatActivity {
         try {
             RecipeHistory item = (RecipeHistory) intent.getSerializableExtra("RECIPE_HISTORY_ITEM");
             if (item == null) return;
-
             lastRecipe = item.getRecipeContent() == null ? "" : item.getRecipeContent();
             if (recipeOutputText != null) recipeOutputText.setText(lastRecipe);
             updateRecipeActions();
-
             if (ingredientInput != null && item.getIngredientsWithUsage() != null) {
-                String ingredients = item.getIngredientsWithUsage().split(" \\(")[0];
-                ingredientInput.setText(ingredients);
+                ingredientInput.setText(item.getIngredientsWithUsage().split(" \\(")[0]);
             }
-
-            Toast.makeText(
-                    this,
-                    "履歴からレシピ「" + item.getRecipeTitle() + "」を再表示しました。",
-                    Toast.LENGTH_LONG
-            ).show();
+            Toast.makeText(this, "履歴からレシピ「" + item.getRecipeTitle() + "」を再表示しました。", Toast.LENGTH_LONG).show();
             intent.removeExtra("RECIPE_HISTORY_ITEM");
         } catch (Exception e) {
             Log.e(TAG, "Error handling history intent.", e);
@@ -315,26 +275,33 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateGenerationAvailability() {
         if (generateRecipeButton == null || apiClient == null) return;
-
+        FirebaseUser current = auth == null ? null : auth.getCurrentUser();
         boolean proxyReady = apiClient.isConfigured();
-        boolean authReady = isAuthInitialized.get() && auth != null && auth.getCurrentUser() != null;
-        boolean ready = proxyReady && (authReady || isAuthInitialized.get()) && !(auth != null && AccountController.get(this).busy());
+        boolean authReady = isAuthInitialized.get() && current != null;
+        boolean accountBusy = auth != null && AccountController.get(this).busy();
+        boolean ready = proxyReady && (authReady || isAuthInitialized.get()) && !accountBusy;
         generateRecipeButton.setEnabled(generating || ready);
         generateRecipeButton.setText(generating ? "停止" : generationFailed ? "もう一度生成する" : "レシピを生成する");
         ((com.google.android.material.button.MaterialButton) generateRecipeButton).setIconResource(
-            generating ? R.drawable.ic_cook_stop : R.drawable.ic_cook_spark);
+                generating ? R.drawable.ic_cook_stop : R.drawable.ic_cook_spark);
+
+        if (highAccuracyCheckbox != null) {
+            boolean signedIn = current != null && !AccountController.isGuest(current);
+            if (!signedIn) highAccuracyCheckbox.setChecked(false);
+            highAccuracyCheckbox.setEnabled(signedIn && !generating && !accountBusy);
+            highAccuracyCheckbox.setText(signedIn
+                    ? "高精度モード（1日10回）"
+                    : "高精度モード（ログイン後に利用可能）");
+        }
 
         if (recipeOutputText == null || !lastRecipe.isEmpty() || generating) return;
-
         if (!proxyReady) {
             recipeOutputText.setText("現在サービスを利用できません。しばらくしてからお試しください。");
         } else if (isAuthInitialized.get() && !authReady) {
             recipeOutputText.setText("認証に失敗しました。通信を確認してアプリを開き直してください。");
         } else if (ready) {
-            String current = recipeOutputText.getText().toString();
-            if (current.contains("未設定") || current.contains("認証に失敗")) {
-                recipeOutputText.setText(getString(R.string.text_recipe_initial));
-            }
+            String currentText = recipeOutputText.getText().toString();
+            if (currentText.contains("未設定") || currentText.contains("認証に失敗")) recipeOutputText.setText(getString(R.string.text_recipe_initial));
         }
     }
 
@@ -376,18 +343,20 @@ public class MainActivity extends AppCompatActivity {
             });
             return;
         }
-
+        if (highAccuracyCheckbox != null && highAccuracyCheckbox.isChecked() && AccountController.isGuest(auth.getCurrentUser())) {
+            highAccuracyCheckbox.setChecked(false);
+            Toast.makeText(this, "高精度モードはログイン後に利用できます。", Toast.LENGTH_LONG).show();
+            return;
+        }
         continueRecipeGeneration();
     }
 
     private void continueRecipeGeneration() {
-        if (ingredientInput == null || spinnerDifficulty == null || spinnerGenre == null ||
-                spinnerTime == null || spinnerDiet == null || spinnerType == null ||
-                editInstructions == null || useAllIngredientsCheckbox == null) {
+        if (ingredientInput == null || spinnerDifficulty == null || spinnerGenre == null || spinnerTime == null ||
+                spinnerDiet == null || spinnerType == null || editInstructions == null || useAllIngredientsCheckbox == null) {
             Toast.makeText(this, "画面を開き直してお試しください。", Toast.LENGTH_LONG).show();
             return;
         }
-
         String ingredients = ingredientInput.getText().toString().trim();
         if (ingredients.isEmpty()) {
             Toast.makeText(this, R.string.toast_input_ingredients, Toast.LENGTH_SHORT).show();
@@ -405,7 +374,6 @@ public class MainActivity extends AppCompatActivity {
                 ? " (入力された具材は全て使用してください)"
                 : " (入力された具材は、全て使用しなくても構いません)";
         final String ingredientsWithUsage = ingredients + ingredientUsage;
-
         String difficulty = spinnerDifficulty.getSelectedItem().toString();
         String genre = spinnerGenre.getSelectedItem().toString();
         String timeConstraint = spinnerTime.getSelectedItem().toString();
@@ -415,17 +383,9 @@ public class MainActivity extends AppCompatActivity {
         StringBuilder allConstraintsBuilder = new StringBuilder();
         allConstraintsBuilder.append(String.format(
                 "主食の分類: %s, 難易度: %s, ジャンル: %s, 調理時間: %s, 食事制限: %s",
-                typeConstraint,
-                difficulty,
-                genre,
-                timeConstraint,
-                dietConstraint
-        ));
-
+                typeConstraint, difficulty, genre, timeConstraint, dietConstraint));
         String instructions = editInstructions.getText().toString().trim();
-        if (!instructions.isEmpty()) {
-            allConstraintsBuilder.append("\n【今回の追加指示】").append(instructions);
-        }
+        if (!instructions.isEmpty()) allConstraintsBuilder.append("\n【今回の追加指示】").append(instructions);
         FirebaseUser currentUser = auth.getCurrentUser();
         CookingPreferences preferences = new CookingPreferencesStore(this).load(currentUser == null ? null : currentUser.getUid());
         allConstraintsBuilder.append(preferences.prompt());
@@ -435,61 +395,62 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "入力が長すぎます。食材や条件を短くしてください。", Toast.LENGTH_LONG).show();
             return;
         }
+
+        final boolean highAccuracy = highAccuracyCheckbox != null && highAccuracyCheckbox.isChecked();
         final long uiRequest = ++uiGeneration;
         generationFailed = false;
         generationStatus.setVisibility(View.GONE);
         generating = true;
         updateRecipeActions();
         updateGenerationAvailability();
-        recipeOutputText.setText("レシピをAIが考案中です...");
+        recipeOutputText.setText(highAccuracy ? "高精度モードでレシピを考案中です..." : "レシピをAIが考案中です...");
         loadingIndicator.setVisibility(View.VISIBLE);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (!destroyed && generating && uiRequest == uiGeneration) {
+                generationStatus.setText(highAccuracy
+                        ? "高精度モードで条件と手順を再確認しています。通常より時間がかかる場合があります。"
+                        : "生成に時間がかかっています。もう少しお待ちください。");
+                generationStatus.setVisibility(View.VISIBLE);
+            }
+        }, 25_000L);
 
         FirebaseUser user = auth.getCurrentUser();
-        apiClient.generateRecipe(user, ingredientsWithUsage, allConstraints, new AiProxyClient.RecipeCallback() {
+        apiClient.generateRecipe(user, ingredientsWithUsage, allConstraints, highAccuracy, new AiProxyClient.RecipeCallback() {
             private boolean succeeded;
             private String generatedRecipe = "";
 
-            @Override
-            public void onResult(String result) {
+            @Override public void onResult(String result) {
                 succeeded = true;
                 generatedRecipe = result == null ? "" : result.trim();
                 runOnUiThread(() -> {
                     if (destroyed || uiRequest != uiGeneration || generatedRecipe.isEmpty()) return;
                     lastRecipe = generatedRecipe;
+                    generationStatus.setVisibility(View.GONE);
                     if (recipeOutputText != null) recipeOutputText.setText(lastRecipe);
                 });
             }
 
-            @Override
-            public void onFailure(String error) {
+            @Override public void onFailure(String error) {
                 runOnUiThread(() -> {
                     if (destroyed || uiRequest != uiGeneration) return;
                     generationFailed = true;
                     generationStatus.setText(error);
                     generationStatus.setVisibility(View.VISIBLE);
-                    if (recipeOutputText != null) {
-                        recipeOutputText.setText(lastRecipe.isEmpty()
-                                ? "エラーが発生しました:\n" + error
-                                : lastRecipe);
-                    }
+                    if (recipeOutputText != null) recipeOutputText.setText(lastRecipe.isEmpty() ? "エラーが発生しました:\n" + error : lastRecipe);
                     Toast.makeText(MainActivity.this, "AI生成に失敗: " + error, Toast.LENGTH_LONG).show();
                 });
             }
 
-            @Override
-            public void onComplete() {
+            @Override public void onComplete() {
                 runOnUiThread(() -> {
                     if (destroyed || uiRequest != uiGeneration) return;
                     generating = false;
                     if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
                     updateGenerationAvailability();
                     updateRecipeActions();
-
                     if (succeeded && !generatedRecipe.isEmpty()) {
-                        Toast.makeText(MainActivity.this, "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
-                        if (historyManager != null) {
-                            historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
-                        }
+                        Toast.makeText(MainActivity.this, highAccuracy ? "高精度レシピが完成しました！" : "レシピ生成が完了しました！", Toast.LENGTH_SHORT).show();
+                        if (historyManager != null) historyManager.saveRecipe(ingredientsWithUsage, allConstraints, generatedRecipe);
                     }
                 });
             }
@@ -508,5 +469,4 @@ public class MainActivity extends AppCompatActivity {
         updateGenerationAvailability();
         updateRecipeActions();
     }
-
 }
