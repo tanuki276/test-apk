@@ -1,6 +1,8 @@
 name: Cloud AI 配備 + 使用可能APKビルド
 
 on:
+  push:
+    branches: [fix/history-quota-settings]
   workflow_dispatch:
 
 jobs:
@@ -110,6 +112,13 @@ jobs:
           echo "Worker: ${BASE_URL}" >> "$GITHUB_STEP_SUMMARY"
           echo "Android endpoint: ${ENDPOINT}" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify deployed API and live recipe/history flow
+        env:
+          SMOKE_BASE_URL: ${{ steps.worker.outputs.endpoint }}
+        run: |
+          export SMOKE_BASE_URL="${SMOKE_BASE_URL%/generate-recipe}"
+          node scripts/live-smoke.mjs
+
       - name: 8. JDK 17をセットアップ
         uses: actions/setup-java@v4
         with:
@@ -126,7 +135,7 @@ jobs:
         shell: bash
         run: |
           chmod +x ./gradlew
-          ./gradlew clean assembleDebug \
+          ./gradlew clean testDebugUnitTest assembleDebug \
             -PAI_PROXY_URL="${{ steps.worker.outputs.endpoint }}" \
             --no-daemon --stacktrace --max-workers=2
 

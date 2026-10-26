@@ -146,6 +146,7 @@ public class AiProxyClient {
     }
 
     public void getUsage(FirebaseUser user, UsageCallback callback) {
+        cancel();
         final long requestId = generation.incrementAndGet();
         if (!isConfigured() || user == null) {
             callback.onFailure("利用状況を取得できません。");
@@ -286,7 +287,9 @@ public class AiProxyClient {
                         return;
                     }
                     if (!safeResponse.isSuccessful()) {
-                        callback.onFailure(parseError(body, safeResponse.code()));
+                        callback.onFailure(safeResponse.code() == 404
+                            ? "利用状況サーバーの更新が必要です。しばらくしてから再試行してください。"
+                            : parseError(body, safeResponse.code()));
                         return;
                     }
                     JSONObject json = new JSONObject(body);

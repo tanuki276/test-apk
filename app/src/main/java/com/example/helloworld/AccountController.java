@@ -37,10 +37,11 @@ public final class AccountController {
     private final FirebaseAuth auth = FirebaseAuth.getInstance();
     private final MutableLiveData<State> state = new MutableLiveData<>(new State(false, ""));
     private FirebaseApp restoreApp;
+    private final PendingHistoryStore pending;
 
     private AccountController(Context context) {
         this.context = context;
-        context.getSharedPreferences("guest_recovery", Context.MODE_PRIVATE).edit().clear().apply();
+        pending = new PendingHistoryStore(context);
     }
 
     public LiveData<State> state() { return state; }
@@ -120,10 +121,10 @@ public final class AccountController {
                 guest == null ? null : guest.getUid(), destinationUid);
             auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(result -> {
                 if (!result.isSuccessful()) {
-                    finish("履歴の引き継ぎは完了しましたが、ログイン状態の切り替えに失敗しました。同じメールアドレスで再度ログインしてください。");
+                    finish("ゲスト履歴を端末に退避しましたが、ログイン状態の切り替えに失敗しました。同じメールアドレスで再度ログインしてください。");
                     return;
                 }
-                finish(copied
+                importPending(destinationUid, copied
                     ? "ログインしました。以前の履歴と今回のゲスト履歴をまとめて利用できます。"
                     : "ログインしました。履歴を引き継ぎました。調理設定は設定画面で確認してください。");
             });
@@ -140,12 +141,11 @@ public final class AccountController {
     }
 
     /**
-     * Copy guest history without deleting the source. Leaving the old guest copy orphaned is safer than
-     * blocking login after a successful destination write. Stable destination IDs make retries idempotent.
+     * Snapshot guest history durably before switching authentication. The original cloud copy stays
+     * intact; stable destination IDs keep retries idempotent, including after process death.
      */
     private void migratePage(String sourceUid, String destinationUid, DocumentSnapshot cursor, Runnable done) {
         FirebaseFirestore sourceDb = FirebaseFirestore.getInstance();
-        FirebaseFirestore targetDb = FirebaseFirestore.getInstance(restoreApp);
         Query query = history(sourceDb, sourceUid).orderBy(FieldPath.documentId()).limit(200);
         if (cursor != null) query = query.startAfter(cursor);
         query.get(Source.SERVER).addOnCompleteListener(task -> {
@@ -153,34 +153,63 @@ public final class AccountController {
             QuerySnapshot page = task.getResult();
             if (page == null || page.isEmpty()) { done.run(); return; }
 
-            WriteBatch copies = targetDb.batch();
-            for (DocumentSnapshot document : page) {
-                copies.set(
-                    history(targetDb, destinationUid).document("guest_" + sourceUid + "_" + document.getId()),
-                    migrationData(document));
-            }
-            copies.commit().addOnCompleteListener(copied -> {
-                if (!copied.isSuccessful()) { migrationFailed(copied.getException()); return; }
-                DocumentSnapshot last = page.getDocuments().get(page.size() - 1);
-                migratePage(sourceUid, destinationUid, last, done);
-            });
+            try {
+                java.util.List<PendingHistoryStore.Entry> entries = new java.util.ArrayList<>();
+                for (DocumentSnapshot document : page) {
+                    entries.add(new PendingHistoryStore.Entry(
+                        HistoryMigration.destinationId(sourceUid, document.getId()), migrationData(document)));
+                }
+                pending.putAll(destinationUid, entries);
+            } catch (RuntimeException failure) { migrationFailed(failure); return; }
+            DocumentSnapshot last = page.getDocuments().get(page.size() - 1);
+            migratePage(sourceUid, destinationUid, last, done);
         });
     }
 
     /** Keep only fields accepted by the current Firestore rules when old-version history is migrated. */
     private Map<String, Object> migrationData(DocumentSnapshot document) {
-        Map<String, Object> out = new HashMap<>();
-        Object title = document.get("recipeTitle");
-        Object ingredients = document.get("ingredientsWithUsage");
-        Object constraints = document.get("allConstraints");
-        Object content = document.get("recipeContent");
-        Object timestamp = document.get("timestamp");
-        out.put("recipeTitle", title instanceof String ? title : "CookAi レシピ");
-        out.put("ingredientsWithUsage", ingredients instanceof String ? ingredients : "");
-        out.put("allConstraints", constraints instanceof String ? constraints : "");
-        out.put("recipeContent", content instanceof String ? content : "");
-        out.put("timestamp", timestamp instanceof Number ? ((Number) timestamp).longValue() : System.currentTimeMillis());
-        return out;
+        Map<String, Object> data = new HashMap<>(document.getData());
+        Object timestamp = data.get("timestamp");
+        if (timestamp instanceof com.google.firebase.Timestamp) {
+            data.put("timestamp", ((com.google.firebase.Timestamp) timestamp).toDate().getTime());
+        } else if (timestamp instanceof java.util.Date) {
+            data.put("timestamp", ((java.util.Date) timestamp).getTime());
+        }
+        return HistoryMigration.normalize(data, System.currentTimeMillis());
+    }
+
+    public boolean hasPendingHistory() {
+        FirebaseUser user = auth.getCurrentUser();
+        return user != null && pending.hasPending(user.getUid());
+    }
+
+    public void retryHistory() {
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null || isGuest(user) || !begin()) return;
+        importPending(user.getUid(), "ゲスト履歴の同期が完了しました。");
+    }
+
+    private void importPending(String uid, String success) {
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null || !uid.equals(user.getUid())) { finish("同じアカウントでログインして履歴の同期を再試行してください。"); return; }
+        final java.util.List<PendingHistoryStore.Entry> page;
+        try { page = pending.page(uid); }
+        catch (RuntimeException failure) { pendingFailed(failure); return; }
+        if (page.isEmpty()) { finish(success); return; }
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        WriteBatch batch = db.batch();
+        for (PendingHistoryStore.Entry entry : page) batch.set(history(db, uid).document(entry.id), entry.data);
+        batch.commit().addOnCompleteListener(result -> {
+            if (!result.isSuccessful()) { pendingFailed(result.getException()); return; }
+            try { pending.remove(uid, page); }
+            catch (RuntimeException failure) { pendingFailed(failure); return; }
+            importPending(uid, success);
+        });
+    }
+
+    private void pendingFailed(Exception failure) {
+        Log.e(TAG, "History outbox upload failed", failure);
+        finish("ログインしました。以前のアカウント履歴は履歴画面で確認できます。今回のゲスト履歴は端末に保管しています。設定の「未同期のゲスト履歴を再送」で同期してください。同期が終わるまでアプリを削除しないでください。");
     }
 
     private void migrationFailed(Exception exception) {
@@ -216,6 +245,10 @@ public final class AccountController {
         FirebaseUser user = auth.getCurrentUser();
         if (user == null || isGuest(user) || user.getEmail() == null) {
             finish("ログインし直してお試しください。");
+            return;
+        }
+        if (pending.hasPending(user.getUid())) {
+            finish("未同期のゲスト履歴があります。先に「未同期のゲスト履歴を再送」を実行してください。");
             return;
         }
         user.reauthenticate(EmailAuthProvider.getCredential(user.getEmail(), password))

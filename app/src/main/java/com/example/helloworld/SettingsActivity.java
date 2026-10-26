@@ -17,6 +17,8 @@ public class SettingsActivity extends AppCompatActivity {
     private boolean presetsLoaded;
     private CookingPreferencesStore cookingStore;
     private AiProxyClient usageClient;
+    private com.google.android.material.switchmaterial.SwitchMaterial highAccuracySwitch;
+    private long usageRequest;
     private final int[] accountActions = {R.id.button_register, R.id.button_login,
         R.id.button_reset_password, R.id.button_logout, R.id.button_delete_account};
 
@@ -53,6 +55,10 @@ public class SettingsActivity extends AppCompatActivity {
         auth = com.google.firebase.auth.FirebaseAuth.getInstance();
         usageClient = new AiProxyClient();
         usageStatus = findViewById(R.id.text_usage_status);
+        highAccuracySwitch = findViewById(R.id.switch_high_accuracy);
+        highAccuracySwitch.setOnCheckedChangeListener((button, checked) ->
+            GenerationPreferences.setHighAccuracy(this, auth.getCurrentUser(), checked));
+        findViewById(R.id.button_retry_history).setOnClickListener(v -> accounts.retryHistory());
         loadPresets(auth.getCurrentUser() == null ? null : auth.getCurrentUser().getUid());
         emailInput = findViewById(R.id.edit_account_email);
         passwordInput = findViewById(R.id.edit_account_password);
@@ -126,6 +132,8 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void refreshUsage() {
         if (usageClient == null || usageStatus == null || auth == null) return;
+        final long request = ++usageRequest;
+        usageClient.cancel();
         com.google.firebase.auth.FirebaseUser user = auth.getCurrentUser();
         android.view.View refresh = findViewById(R.id.button_refresh_usage);
         if (user == null) {
@@ -138,20 +146,18 @@ public class SettingsActivity extends AppCompatActivity {
         usageClient.getUsage(user, new AiProxyClient.UsageCallback() {
             @Override public void onResult(AiProxyClient.UsageStatus status) {
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
+                    if (isFinishing() || isDestroyed() || request != usageRequest) return;
                     if (status.guest) {
-                        usageStatus.setText("ゲスト\n通常生成：残り " + status.normalRemaining + " / " + status.normalLimit
-                                + " 回\n高精度モード：ログイン後に利用可能");
+                        usageStatus.setText("通常生成　残り" + status.normalRemaining + "回\n高精度モード　残り0回（ログイン後に利用可能）");
                     } else {
-                        usageStatus.setText("ログイン済み\n通常生成：残り " + status.normalRemaining + " / " + status.normalLimit
-                                + " 回\n高精度モード：残り " + status.highRemaining + " / " + status.highLimit + " 回");
+                        usageStatus.setText("通常生成　残り" + status.normalRemaining + "回\n高精度モード　残り" + status.highRemaining + "回");
                     }
                     refresh.setEnabled(true);
                 });
             }
             @Override public void onFailure(String error) {
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
+                    if (isFinishing() || isDestroyed() || request != usageRequest) return;
                     usageStatus.setText(error + " 更新ボタンで再試行できます。");
                     refresh.setEnabled(true);
                 });
@@ -177,6 +183,11 @@ public class SettingsActivity extends AppCompatActivity {
         boolean signedIn = user != null && !AccountController.isGuest(user);
         String uid = user == null ? null : user.getUid();
         if (!presetsLoaded || !java.util.Objects.equals(presetOwner, uid)) loadPresets(uid);
+        highAccuracySwitch.setChecked(GenerationPreferences.isHighAccuracy(this, user));
+        highAccuracySwitch.setEnabled(signedIn && !accounts.busy());
+        findViewById(R.id.button_retry_history).setVisibility(accounts.hasPendingHistory()
+            ? android.view.View.VISIBLE : android.view.View.GONE);
+        findViewById(R.id.button_retry_history).setEnabled(!accounts.busy());
         boolean editable = user != null && !accounts.busy();
         presetAllergies.setEnabled(editable);
         presetSeasonings.setEnabled(editable);

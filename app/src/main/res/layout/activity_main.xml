@@ -44,7 +44,6 @@
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView style="@style/CookSection">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
-                <CheckBox android:id="@+id/checkbox_high_accuracy" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="高精度モード（ログイン後に利用可能）" android:textColor="#20372F" android:textStyle="bold" android:buttonTint="#24594B" android:enabled="false"/>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="条件をより厳密に確認し、生成後にもう一度レビューします。通常より時間がかかります。" android:textColor="#66776D" android:textSize="13sp" android:lineSpacingExtra="3dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
