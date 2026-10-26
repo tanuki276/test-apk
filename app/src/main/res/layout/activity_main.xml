@@ -42,6 +42,12 @@
                 <EditText android:id="@+id/edit_instructions" style="@style/CookInput" android:layout_marginTop="12dp" android:minLines="3" android:gravity="top" android:inputType="textMultiLine" android:maxLength="2000" android:hint="例：子ども向け、洗い物を少なく、辛くしない"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
+                <CheckBox android:id="@+id/checkbox_high_accuracy" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="高精度モード（ログイン後に利用可能）" android:textColor="#20372F" android:textStyle="bold" android:buttonTint="#24594B" android:enabled="false"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="条件をより厳密に確認し、生成後にもう一度レビューします。通常より時間がかかります。" android:textColor="#66776D" android:textSize="13sp" android:lineSpacingExtra="3dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.button.MaterialButton android:id="@+id/button_generate_recipe" style="@style/CookPrimaryButton" android:text="レシピを生成する" app:icon="@drawable/ic_cook_spark"/>
         <TextView android:id="@+id/text_generation_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:textColor="#9C3030" android:accessibilityLiveRegion="polite" android:visibility="gone"/>
         <ProgressBar android:id="@+id/progress_bar_loading" android:layout_width="32dp" android:layout_height="32dp" android:layout_gravity="center_horizontal" android:layout_margin="16dp" android:indeterminateTint="#24594B" android:visibility="gone"/>
