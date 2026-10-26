@@ -1,7 +1,7 @@
 # CookAi 1.5 修正内容（検証中）
 
 ベース: a33cd6a826f5773911748f0ee72ab8e2db82a6a4
-作業ブランチ: fix/history-quota-settings（ローカルのみ）
+作業ブランチ: fix/history-quota-settings / PR #7（https://github.com/tanuki276/test-apk/pull/7）
 
 ## 変更
 
@@ -18,20 +18,23 @@
 
 ## 実施済み検証
 
-- WorkerのNode回帰テスト: 12件成功。
+- WorkerのNode回帰テスト: 13件成功。本番fetchの第3引数（実行コンテキスト）と検証用認証関数が衝突しない回帰テストを追加済み。
 - Javaの履歴互換性ロジック: 実ソースをJava 17でコンパイルし、互換性・本文保持・安定IDなど12チェック成功。
 - Android XML: 41ファイルを構文解析済み。
 - Gradle testDebugUnitTest / assembleDebug / assembleDebugAndroidTest: 成功。単体テスト15件・失敗0件。
 - APKのv2署名検証: 成功。現環境で新規作成したデバッグ鍵であり、旧APKとの署名互換性は未確認。旧APKに上書きできない場合でも履歴の同期完了前にアンインストールしない。
 - JavaScript構文、git diff --check: 成功。
 
-## 未検証・保留
+## 本番とエミュレーターの検証結果
 
-- Android全体ビルド、テストAPKビルド、単体テスト15件は成功。エミュレーターでの実行は未実施。追加したAndroid試験には、205件の移行、ログインし直した履歴復元、通信失敗時のゲスト保持、再送キューの再オープンとユーザー分離、スイッチの画面再作成後の復元が含まれる。
-- 本番WorkerはリポジトリのAPIと不一致であることを確認。更新とライブ試験は未実施。
-- GitHubへのソース書き込みは自動承認レビューで拒否されたため、リモートブランチ、PR、CIビルド、サーバー配備は未作成・未実行。
-- `.github/workflows/deploy-cloud-ai.yml` はこの修正ブランチへのpushで既存Cloudflare Secretを使って配備し、ライブ検証後にAPKを作る構成。公開・実行にはユーザーの明示的な承認が必要。
-- Firestore本番ルールの配備はこの変更には含めていない。ライブ試験で権限エラーが出る場合は、認証された本人だけが自分の履歴にアクセスできる現行ルールの適用状況を確認する必要がある。
+- Cloudflare配備: 成功。API v2の利用状況取得、通常レシピ生成、高精度レシピ生成、各残数の独立した減算、メール再ログイン時のUID一致を実際のサービスで確認した。
+- 本番チェックは新しく作ったテストユーザーだけを利用し、認証アカウントは終了時に削除した。
+- API 36エミュレーターのAndroid計装テスト11件成功。205件の移行、ログインし直した履歴復元、通信失敗時のゲスト保持、再送キューの再オープンとユーザー分離、スイッチの画面再作成後の復元を含む。Androidソースが同じコミット9c2bfe4のCIで実行済み。
+- WorkerとFirestore/AuthエミュレーターのCIはコミット3a1cae5で成功。
+- 本番履歴の統合検証は未完了。Firestore RESTが403を返し、サービスから「Cloud Firestore API has not been used in project liefantidia2 before or it is disabled」と応答された。ルール拒否と断定せず、まずAPIの有効化、DBの作成状態を管理権限で確認する必要がある。
+- 現時点ではFirebaseの管理接続がないため、API有効化やFirestore Rulesの本番適用は行えていない。Firebaseを追加・接続後に有効化・DB状態・ルールを確認し、`scripts/live-smoke.mjs`を再実行する。
+- 配備とライブ統合検証を同時に行うワークフローは、本番Firestoreの403を検出して停止する。通常のAndroid CIは成功しており、コミット3a1cae5の署名済みデバッグAPKを作成済み。
+- mainへのマージは行っていない。
 
 ## 履歴を保護するための条件
 
