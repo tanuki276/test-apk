@@ -1,0 +1,29 @@
+name: AI Worker regression tests
+
+on:
+  push:
+    paths:
+      - 'cloudflare-worker/**'
+      - '.github/workflows/worker-test.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-worker/**'
+      - '.github/workflows/worker-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare-worker/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: cloudflare-worker
+      - run: npm test
+        working-directory: cloudflare-worker
