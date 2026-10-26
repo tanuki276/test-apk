@@ -7,12 +7,14 @@ binding = "AI"
 
 [vars]
 FIREBASE_PROJECT_ID = "liefantidia2"
-PROVIDER_ORDER = "groq,gemini,workers"
-GROQ_MODEL = "openai/gpt-oss-20b"
-GEMINI_MODEL = "gemini-3.8-flash"
+HIGH_PROVIDER_ORDER = "groq,gemini,workers"
+GROQ_HIGH_MODEL = "openai/gpt-oss-120b"
+GEMINI_HIGH_MODEL = "gemini-3.8-flash"
 WORKERS_AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 
-USER_DAILY_LIMIT = "20"
+GUEST_NORMAL_DAILY_LIMIT = "5"
+USER_NORMAL_DAILY_LIMIT = "20"
+USER_HIGH_DAILY_LIMIT = "10"
 GLOBAL_DAILY_LIMIT = "500"
 
 [[durable_objects.bindings]]
