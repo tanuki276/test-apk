@@ -25,6 +25,14 @@
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView style="@style/CookSection">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/CookTitle" android:text="本日の利用上限" android:drawableStart="@drawable/ic_cook_clock"/>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ゲストは通常生成5回まで。ログイン後は通常生成20回、高精度モード10回まで利用できます。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp"/>
+                <TextView android:id="@+id/text_usage_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="本日の利用状況を確認しています…" android:textColor="#20372F" android:textSize="16sp" android:lineSpacingExtra="5dp" android:paddingTop="12dp" android:accessibilityLiveRegion="polite"/>
+                <com.google.android.material.button.MaterialButton android:id="@+id/button_refresh_usage" style="@style/CookOutlineButton" android:text="利用状況を更新" app:icon="@drawable/ic_cook_clock" android:layout_marginTop="12dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView style="@style/CookSection">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
                 <TextView style="@style/CookTitle" android:text="いつもの調理設定" android:drawableStart="@drawable/ic_cook_pot"/>
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="保存した内容を、毎回のレシピ生成に反映します。この端末にアカウントごとに保存されます。" android:textColor="#66776D" android:textSize="14sp" android:lineSpacingExtra="4dp"/>
                 <TextView style="@style/CookLabel" android:text="アレルギー・避けたい食材" android:drawableStart="@drawable/ic_cook_shield" android:drawablePadding="10dp"/>
