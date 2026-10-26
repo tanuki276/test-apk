@@ -10,12 +10,13 @@ public class SettingsActivity extends AppCompatActivity {
     private com.google.firebase.auth.FirebaseAuth auth;
     private com.google.firebase.auth.FirebaseAuth.AuthStateListener authListener;
     private android.widget.EditText emailInput, passwordInput;
-    private android.widget.TextView accountStatus, accountMessage;
+    private android.widget.TextView accountStatus, accountMessage, usageStatus;
     private android.view.View credentials;
     private android.widget.EditText presetAllergies, presetSeasonings, presetMethods;
     private String presetOwner;
     private boolean presetsLoaded;
     private CookingPreferencesStore cookingStore;
+    private AiProxyClient usageClient;
     private final int[] accountActions = {R.id.button_register, R.id.button_login,
         R.id.button_reset_password, R.id.button_logout, R.id.button_delete_account};
 
@@ -50,6 +51,8 @@ public class SettingsActivity extends AppCompatActivity {
     private void setupAccounts() {
         accounts = AccountController.get(this);
         auth = com.google.firebase.auth.FirebaseAuth.getInstance();
+        usageClient = new AiProxyClient();
+        usageStatus = findViewById(R.id.text_usage_status);
         loadPresets(auth.getCurrentUser() == null ? null : auth.getCurrentUser().getUid());
         emailInput = findViewById(R.id.edit_account_email);
         passwordInput = findViewById(R.id.edit_account_password);
@@ -71,13 +74,18 @@ public class SettingsActivity extends AppCompatActivity {
             .setNegativeButton("戻る", null)
             .setPositiveButton("ログアウト", (dialog, which) -> accounts.logout()).show());
         findViewById(R.id.button_delete_account).setOnClickListener(v -> confirmAccountDeletion());
-        authListener = firebaseAuth -> renderAccount();
+        findViewById(R.id.button_refresh_usage).setOnClickListener(v -> refreshUsage());
+        authListener = firebaseAuth -> {
+            renderAccount();
+            refreshUsage();
+        };
         auth.addAuthStateListener(authListener);
         accounts.state().observe(this, state -> {
             accountMessage.setText(state.message);
             findViewById(R.id.progress_account).setVisibility(state.busy ? android.view.View.VISIBLE : android.view.View.GONE);
             if (!state.busy && !state.migrationBlocked) passwordInput.setText("");
             renderAccount();
+            if (!state.busy) refreshUsage();
         });
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
@@ -86,6 +94,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
     }
+
     private void setupPresets() {
         cookingStore = new CookingPreferencesStore(this);
         presetAllergies = findViewById(R.id.edit_preset_allergies);
@@ -104,6 +113,7 @@ public class SettingsActivity extends AppCompatActivity {
                 ? "保存しました。次のレシピ生成から反映します。" : "保存できませんでした。もう一度お試しください。");
         });
     }
+
     private void loadPresets(String uid) {
         CookingPreferences preferences = cookingStore.load(uid);
         presetAllergies.setText(preferences.allergies);
@@ -113,8 +123,45 @@ public class SettingsActivity extends AppCompatActivity {
         presetsLoaded = true;
         ((TextView) findViewById(R.id.text_preset_status)).setText("");
     }
+
+    private void refreshUsage() {
+        if (usageClient == null || usageStatus == null || auth == null) return;
+        com.google.firebase.auth.FirebaseUser user = auth.getCurrentUser();
+        android.view.View refresh = findViewById(R.id.button_refresh_usage);
+        if (user == null) {
+            usageStatus.setText("利用状況を取得するには認証が必要です。");
+            refresh.setEnabled(true);
+            return;
+        }
+        refresh.setEnabled(false);
+        usageStatus.setText("本日の利用状況を確認しています…");
+        usageClient.getUsage(user, new AiProxyClient.UsageCallback() {
+            @Override public void onResult(AiProxyClient.UsageStatus status) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (status.guest) {
+                        usageStatus.setText("ゲスト\n通常生成：残り " + status.normalRemaining + " / " + status.normalLimit
+                                + " 回\n高精度モード：ログイン後に利用可能");
+                    } else {
+                        usageStatus.setText("ログイン済み\n通常生成：残り " + status.normalRemaining + " / " + status.normalLimit
+                                + " 回\n高精度モード：残り " + status.highRemaining + " / " + status.highLimit + " 回");
+                    }
+                    refresh.setEnabled(true);
+                });
+            }
+            @Override public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    usageStatus.setText(error + " 更新ボタンで再試行できます。");
+                    refresh.setEnabled(true);
+                });
+            }
+        });
+    }
+
     private String email() { return emailInput.getText().toString().trim(); }
     private String password() { return passwordInput.getText().toString(); }
+
     private boolean validate(boolean needsPassword, boolean registering) {
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email()).matches()) {
             emailInput.setError("メールアドレスを確認してください。"); return false;
@@ -124,6 +171,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
         return true;
     }
+
     private void renderAccount() {
         com.google.firebase.auth.FirebaseUser user = auth.getCurrentUser();
         boolean signedIn = user != null && !AccountController.isGuest(user);
@@ -148,6 +196,7 @@ public class SettingsActivity extends AppCompatActivity {
         passwordInput.setEnabled(!accounts.busy());
         findViewById(R.id.button_back).setEnabled(!accounts.busy());
     }
+
     private void confirmAccountDeletion() {
         android.widget.EditText confirmation = new android.widget.EditText(this);
         confirmation.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -164,6 +213,12 @@ public class SettingsActivity extends AppCompatActivity {
         }));
         dialog.show();
     }
+
+    @Override protected void onResume() {
+        super.onResume();
+        refreshUsage();
+    }
+
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putString("presetOwner", presetOwner);
         state.putString("presetDraftAllergies", presetAllergies.getText().toString());
@@ -171,8 +226,10 @@ public class SettingsActivity extends AppCompatActivity {
         state.putString("presetDraftMethods", presetMethods.getText().toString());
         super.onSaveInstanceState(state);
     }
+
     @Override protected void onDestroy() {
         if (auth != null && authListener != null) auth.removeAuthStateListener(authListener);
+        if (usageClient != null) usageClient.cancel();
         super.onDestroy();
     }
 }
