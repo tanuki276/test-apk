@@ -1,7 +1,7 @@
 name: Android UI and cooking preferences
 on:
   pull_request:
-    branches: [main, master, fix/store-release-polish]
+    branches: [main, master, fix/store-release-polish, fix/history-quota-settings]
   workflow_dispatch:
 jobs:
   ui:

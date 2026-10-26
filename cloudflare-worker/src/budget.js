@@ -41,7 +41,7 @@ export class GenerationBudget {
       const selectedLimit = mode === "high" ? limits.high : limits.normal;
       const selectedCount = mode === "high" ? user.high : user.normal;
 
-      if (selectedLimit <= 0) return { allowed: false, reason: "mode" };
+      if (selectedLimit <= 0) return { allowed: false, reason: "daily" };
       if (total.count >= this.cap("GLOBAL_DAILY_LIMIT", 500)) return { allowed: false, reason: "global" };
       if (selectedCount >= selectedLimit) return { allowed: false, reason: "daily" };
       if (now - Number(user.last || 0) < 15000) return { allowed: false, reason: "cooldown" };
@@ -71,7 +71,9 @@ export class GenerationBudget {
   }
 
   cap(name, fallback) {
-    const value = Number(this.env[name]);
+    const raw = this.env[name];
+    if (raw == null || (typeof raw === "string" && !raw.trim())) return fallback;
+    const value = Number(raw);
     return Number.isSafeInteger(value) && value >= 0 ? value : fallback;
   }
 
@@ -93,7 +95,7 @@ export class GenerationBudget {
         remaining: Math.max(0, limits.normal - normalUsed),
       },
       highAccuracy: {
-        available: !guest,
+        available: !guest && limits.high > 0,
         used: highUsed,
         limit: limits.high,
         remaining: Math.max(0, limits.high - highUsed),

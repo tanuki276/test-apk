@@ -85,3 +85,19 @@ test('UTC next day resets counters and old identifiers', async () => {
   assert.equal((await admit(budget, 'new')).status, 204);
   assert.deepEqual(Object.keys(records.get('budget-v2').users), ['user:new']);
 });
+
+test('blank quota settings use defaults while explicit zero disables the mode', async () => {
+  for (const raw of ['', '   ', null, undefined]) {
+    const { budget } = fixture({ USER_NORMAL_DAILY_LIMIT: raw, GLOBAL_DAILY_LIMIT: raw });
+    assert.equal((await admit(budget, 'u')).status, 204);
+    assert.equal((await (await status(budget, 'u')).json()).normal.limit, 20);
+  }
+  const { budget, records } = fixture({ USER_NORMAL_DAILY_LIMIT: '0', USER_HIGH_DAILY_LIMIT: '0' });
+  const body = await (await status(budget, 'u')).json();
+  assert.equal(body.highAccuracy.available, false);
+  assert.equal(body.normal.remaining, 0);
+  const denied = await admit(budget, 'u');
+  assert.equal(denied.status, 429);
+  assert.match((await denied.json()).error, /通常生成/);
+  assert.equal(records.size, 0);
+});
