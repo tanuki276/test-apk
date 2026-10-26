@@ -145,7 +145,7 @@ public final class AccountController {
      * intact; stable destination IDs keep retries idempotent, including after process death.
      */
     private void migratePage(String sourceUid, String destinationUid, DocumentSnapshot cursor, Runnable done) {
-        FirebaseFirestore sourceDb = FirebaseFirestore.getInstance();
+        FirebaseFirestore sourceDb = FirebaseFirestore.getInstance("default");
         Query query = history(sourceDb, sourceUid).orderBy(FieldPath.documentId()).limit(200);
         if (cursor != null) query = query.startAfter(cursor);
         query.get(Source.SERVER).addOnCompleteListener(task -> {
@@ -196,7 +196,7 @@ public final class AccountController {
         try { page = pending.page(uid); }
         catch (RuntimeException failure) { pendingFailed(failure); return; }
         if (page.isEmpty()) { finish(success); return; }
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseFirestore db = FirebaseFirestore.getInstance("default");
         WriteBatch batch = db.batch();
         for (PendingHistoryStore.Entry entry : page) batch.set(history(db, uid).document(entry.id), entry.data);
         batch.commit().addOnCompleteListener(result -> {
@@ -259,7 +259,7 @@ public final class AccountController {
     }
 
     private void deletePage(FirebaseUser user) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseFirestore db = FirebaseFirestore.getInstance("default");
         history(db, user.getUid()).limit(200).get(Source.SERVER).addOnCompleteListener(task -> {
             if (!task.isSuccessful()) { deletionFailed(); return; }
             if (task.getResult().isEmpty()) {

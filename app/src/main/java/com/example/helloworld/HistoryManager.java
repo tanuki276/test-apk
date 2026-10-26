@@ -36,7 +36,7 @@ public class HistoryManager {
     public HistoryManager(Context context) {
         // Firestoreインスタンスはシングルトンで取得
         this.context = context.getApplicationContext();
-        this.db = FirebaseFirestore.getInstance();
+        this.db = FirebaseFirestore.getInstance("default");
         this.appId = getAppId(context);
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();

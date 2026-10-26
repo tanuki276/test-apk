@@ -78,7 +78,7 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
         searchInput = findViewById(R.id.edit_history_search);
         ImageButton backButton = findViewById(R.id.button_back);
 
-        db = FirebaseFirestore.getInstance();
+        db = FirebaseFirestore.getInstance("default");
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         // ユーザーIDは認証が完了しているはず
         if (user == null) {
