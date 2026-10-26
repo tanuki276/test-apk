@@ -90,6 +90,7 @@ export async function handleRequest(request, env, verify = verifyFirebaseRequest
       return json({ error: "高精度モードを完了できませんでした。少し待ってから再試行してください。" }, 503);
     } catch (error) {
       const message = safeMessage(error);
+      console.error("Router request failed", message);
       const status = message.startsWith("AUTH_") ? 401 : message === "BODY_TOO_LARGE" ? 413 : 500;
       return json({
         error: status === 401

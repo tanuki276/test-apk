@@ -117,7 +117,17 @@ jobs:
           SMOKE_BASE_URL: ${{ steps.worker.outputs.endpoint }}
         run: |
           export SMOKE_BASE_URL="${SMOKE_BASE_URL%/generate-recipe}"
-          node scripts/live-smoke.mjs
+          cd cloudflare-worker
+          npx wrangler tail --format=json > "$RUNNER_TEMP/cookai-tail.json" 2> "$RUNNER_TEMP/cookai-tail-error.txt" &
+          TAIL_PID=$!
+          cd ..
+          sleep 5
+          result=0
+          node scripts/live-smoke.mjs || result=$?
+          sleep 3
+          kill "$TAIL_PID" || true
+          node scripts/tail-summary.mjs "$RUNNER_TEMP/cookai-tail.json"
+          exit "$result"
 
       - name: 8. JDK 17をセットアップ
         uses: actions/setup-java@v4
