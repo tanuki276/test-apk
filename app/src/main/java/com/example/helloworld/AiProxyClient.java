@@ -1,7 +1,5 @@
 package com.example.liefantidia2;
 
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -12,6 +10,10 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,16 +32,21 @@ public class AiProxyClient {
     private static final String TAG = "AiProxyClient";
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private static final long TOKEN_TIMEOUT_MS = 20_000L;
-    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private static final ScheduledExecutorService TOKEN_TIMEOUTS = Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactory() {
+                @Override public Thread newThread(Runnable runnable) {
+                    Thread thread = new Thread(runnable, "cookai-token-timeout");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            });
 
     private final OkHttpClient client;
     private final String proxyUrl;
     private final AtomicLong generation = new AtomicLong(0);
     private volatile Call activeCall;
 
-    public AiProxyClient() {
-        this(BuildConfig.AI_PROXY_URL);
-    }
+    public AiProxyClient() { this(BuildConfig.AI_PROXY_URL); }
 
     AiProxyClient(String configuredUrl) {
         client = new OkHttpClient.Builder()
@@ -72,13 +79,9 @@ public class AiProxyClient {
 
     public static final class UsageStatus {
         public final boolean guest;
-        public final int normalUsed;
-        public final int normalLimit;
-        public final int normalRemaining;
+        public final int normalUsed, normalLimit, normalRemaining;
         public final boolean highAvailable;
-        public final int highUsed;
-        public final int highLimit;
-        public final int highRemaining;
+        public final int highUsed, highLimit, highRemaining;
 
         UsageStatus(boolean guest, int normalUsed, int normalLimit, int normalRemaining,
                     boolean highAvailable, int highUsed, int highLimit, int highRemaining) {
@@ -138,9 +141,7 @@ public class AiProxyClient {
             @Override public void onToken(String token) {
                 enqueueRecipe(user, token, body.toString(), requestId, callback, true);
             }
-            @Override public void onFailure(String message) {
-                failAndComplete(requestId, callback, message);
-            }
+            @Override public void onFailure(String message) { failAndComplete(requestId, callback, message); }
         });
     }
 
@@ -151,9 +152,7 @@ public class AiProxyClient {
             return;
         }
         getToken(user, false, requestId, new TokenCallback() {
-            @Override public void onToken(String token) {
-                enqueueUsage(user, token, requestId, callback, true);
-            }
+            @Override public void onToken(String token) { enqueueUsage(user, token, requestId, callback, true); }
             @Override public void onFailure(String message) {
                 if (isCurrent(requestId)) callback.onFailure(message);
             }
@@ -167,15 +166,15 @@ public class AiProxyClient {
 
     private void getToken(FirebaseUser user, boolean forceRefresh, long requestId, TokenCallback callback) {
         AtomicBoolean finished = new AtomicBoolean(false);
-        Runnable timeout = () -> {
+        ScheduledFuture<?> timeout = TOKEN_TIMEOUTS.schedule(() -> {
             if (finished.compareAndSet(false, true) && isCurrent(requestId)) {
                 callback.onFailure("認証情報の取得に時間がかかっています。通信を確認してもう一度お試しください。");
             }
-        };
-        MAIN.postDelayed(timeout, TOKEN_TIMEOUT_MS);
+        }, TOKEN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
         user.getIdToken(forceRefresh).addOnCompleteListener(task -> {
             if (!finished.compareAndSet(false, true)) return;
-            MAIN.removeCallbacks(timeout);
+            timeout.cancel(false);
             if (!isCurrent(requestId)) return;
             if (!task.isSuccessful() || task.getResult() == null || TextUtils.isEmpty(task.getResult().getToken())) {
                 callback.onFailure("認証に失敗しました。通信を確認してもう一度お試しください。");
@@ -222,9 +221,7 @@ public class AiProxyClient {
                             @Override public void onToken(String refreshed) {
                                 enqueueRecipe(user, refreshed, body, requestId, callback, false);
                             }
-                            @Override public void onFailure(String message) {
-                                failAndComplete(requestId, callback, message);
-                            }
+                            @Override public void onFailure(String message) { failAndComplete(requestId, callback, message); }
                         });
                         return;
                     }
@@ -235,11 +232,8 @@ public class AiProxyClient {
                     }
                     JSONObject json = new JSONObject(responseBody);
                     String recipe = json.optString("recipe", "").trim();
-                    if (recipe.isEmpty()) {
-                        callback.onFailure("AIから有効なレシピが返りませんでした。");
-                    } else {
-                        callback.onResult(recipe);
-                    }
+                    if (recipe.isEmpty()) callback.onFailure("AIから有効なレシピが返りませんでした。");
+                    else callback.onResult(recipe);
                     callback.onComplete();
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to process Worker response", e);
