@@ -16,7 +16,7 @@ async function auth(action, body) {
   return response.json();
 }
 async function firestore(user, method, suffix, body) {
-  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/artifacts/liefantidia2/users/${user.localId}/history${suffix}`, {
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/default/documents/artifacts/liefantidia2/users/${user.localId}/history${suffix}`, {
     method, headers: { Authorization: `Bearer ${user.idToken}`, 'Content-Type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(20000),
   });

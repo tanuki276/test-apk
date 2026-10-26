@@ -101,7 +101,7 @@ public class AiProxyClient {
         void onFailure(String error);
     }
 
-    public void cancel() {
+    public synchronized void cancel() {
         generation.incrementAndGet();
         Call call = activeCall;
         activeCall = null;
@@ -201,8 +201,7 @@ public class AiProxyClient {
         }
 
         Call call = client.newCall(request);
-        if (!isCurrent(requestId)) { call.cancel(); return; }
-        activeCall = call;
+        if (!activate(call, requestId)) return;
         call.enqueue(new Callback() {
             @Override public void onFailure(Call failedCall, IOException e) {
                 clearActive(failedCall);
@@ -213,10 +212,10 @@ public class AiProxyClient {
             }
 
             @Override public void onResponse(Call completedCall, Response response) {
-                clearActive(completedCall);
                 if (!isCurrent(requestId)) { response.close(); return; }
                 try (Response safeResponse = response) {
                     String responseBody = safeResponse.body() == null ? "" : safeResponse.body().string();
+                    if (!isCurrent(requestId) || completedCall.isCanceled()) return;
                     if (safeResponse.code() == 401 && allowRefresh) {
                         getToken(user, true, requestId, new TokenCallback() {
                             @Override public void onToken(String refreshed) {
@@ -242,6 +241,8 @@ public class AiProxyClient {
                         callback.onFailure("レシピを受け取れませんでした。もう一度お試しください。");
                         callback.onComplete();
                     }
+                } finally {
+                    clearActive(completedCall);
                 }
             }
         });
@@ -265,7 +266,7 @@ public class AiProxyClient {
                 .get()
                 .build();
         Call call = client.newCall(request);
-        activeCall = call;
+        if (!activate(call, requestId)) return;
         call.enqueue(new Callback() {
             @Override public void onFailure(Call failedCall, IOException e) {
                 clearActive(failedCall);
@@ -273,10 +274,10 @@ public class AiProxyClient {
             }
 
             @Override public void onResponse(Call completedCall, Response response) {
-                clearActive(completedCall);
                 if (!isCurrent(requestId)) { response.close(); return; }
                 try (Response safeResponse = response) {
                     String body = safeResponse.body() == null ? "" : safeResponse.body().string();
+                    if (!isCurrent(requestId) || completedCall.isCanceled()) return;
                     if (safeResponse.code() == 401 && allowRefresh) {
                         getToken(user, true, requestId, new TokenCallback() {
                             @Override public void onToken(String refreshed) {
@@ -303,14 +304,22 @@ public class AiProxyClient {
                             high.optInt("used", 0), high.optInt("limit", 0), high.optInt("remaining", 0)));
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to parse usage", e);
-                    callback.onFailure("利用状況を取得できません。");
+                    if (isCurrent(requestId)) callback.onFailure("利用状況を取得できません。");
+                } finally {
+                    clearActive(completedCall);
                 }
             }
         });
     }
 
     private boolean isCurrent(long requestId) { return generation.get() == requestId; }
-    private void clearActive(Call call) { if (activeCall == call) activeCall = null; }
+    private synchronized boolean activate(Call call, long requestId) {
+        if (!isCurrent(requestId)) { call.cancel(); return false; }
+        activeCall = call;
+        return true;
+    }
+
+    private synchronized void clearActive(Call call) { if (activeCall == call) activeCall = null; }
 
     private void failAndComplete(long requestId, RecipeCallback callback, String message) {
         if (!isCurrent(requestId)) return;

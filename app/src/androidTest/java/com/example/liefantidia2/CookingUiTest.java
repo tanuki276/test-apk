@@ -36,10 +36,10 @@ public class CookingUiTest {
             .setApiKey("AIzaSyTestOnlyNeverUseInProduction1234567")
             .setProjectId("demo-cookai").build());
         FirebaseAuth.getInstance().useEmulator("10.0.2.2", 9099);
-        FirebaseFirestore.getInstance().useEmulator("10.0.2.2", 8080);
+        FirebaseFirestore.getInstance("default").useEmulator("10.0.2.2", 8080);
         FirebaseApp restore = FirebaseApp.initializeApp(context, FirebaseApp.getInstance().getOptions(), "account-restore");
         FirebaseAuth.getInstance(restore).useEmulator("10.0.2.2", 9099);
-        FirebaseFirestore.getInstance(restore).useEmulator("10.0.2.2", 8080);
+        FirebaseFirestore.getInstance(restore, "default").useEmulator("10.0.2.2", 8080);
         Tasks.await(FirebaseAuth.getInstance().signInAnonymously(), 30, TimeUnit.SECONDS);
     }
     @Test public void pendingTransfersSurviveReopenAndAreIsolatedByAccount() {
@@ -185,7 +185,7 @@ public class CookingUiTest {
         AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
         String email = "retry-" + System.nanoTime() + "@example.com";
         String password = "TestPassword123!";
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        FirebaseFirestore db = FirebaseFirestore.getInstance("default");
         try {
             runAccount(controller, () -> controller.register(email, password));
             String accountUid = auth.getCurrentUser().getUid();
@@ -242,13 +242,13 @@ public class CookingUiTest {
         }
     }
     private com.google.firebase.firestore.CollectionReference history(String uid) {
-        return FirebaseFirestore.getInstance().collection("artifacts/liefantidia2/users/" + uid + "/history");
+        return FirebaseFirestore.getInstance("default").collection("artifacts/liefantidia2/users/" + uid + "/history");
     }
     private void writeRecipes(String uid, int count, String title) throws Exception {
         // Auth/Firestore start on separate executors. Refresh the new session before seeding,
         // and allow a cold emulator connection to recover its initial transport backoff.
         Tasks.await(FirebaseAuth.getInstance().getCurrentUser().getIdToken(true), 30, TimeUnit.SECONDS);
-        com.google.firebase.firestore.WriteBatch batch = FirebaseFirestore.getInstance().batch();
+        com.google.firebase.firestore.WriteBatch batch = FirebaseFirestore.getInstance("default").batch();
         Map<String, Object> recipe = new HashMap<>();
         recipe.put("recipeTitle", title);
         recipe.put("ingredientsWithUsage", "卵");
@@ -264,7 +264,7 @@ public class CookingUiTest {
     }
     @Test public void historySearchFiltersAndClearsAfterLoading() throws Exception {
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        com.google.firebase.firestore.DocumentReference document = FirebaseFirestore.getInstance()
+        com.google.firebase.firestore.DocumentReference document = FirebaseFirestore.getInstance("default")
             .document("artifacts/liefantidia2/users/" + uid + "/history/search-demo");
         Map<String, Object> recipe = new HashMap<>();
         recipe.put("recipeTitle", "検索確認カレー");

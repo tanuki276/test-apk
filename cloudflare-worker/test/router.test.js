@@ -83,3 +83,20 @@ test('production fetch context cannot replace the authentication verifier', asyn
     { FIREBASE_PROJECT_ID: 'demo-project' }, { waitUntil() {}, passThroughOnException() {} });
   assert.equal(response.status, 401);
 });
+
+test('missing providers do not consume quota in either mode', async () => {
+  for (const mode of ['normal', 'high']) {
+    const env = envWithAI(async () => 'unused');
+    delete env.AI;
+    const response = await handleRequest(generate(mode), env, identity);
+    assert.equal(response.status, 503);
+    assert.equal(env.calls.length, 0);
+  }
+});
+test('an empty high accuracy provider order does not consume quota', async () => {
+  const env = envWithAI(async () => { throw new Error('must not generate'); });
+  env.HIGH_PROVIDER_ORDER = 'unknown';
+  const response = await handleRequest(generate('high'), env, identity);
+  assert.equal(response.status, 503);
+  assert.equal(env.calls.length, 0);
+});

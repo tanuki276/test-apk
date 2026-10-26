@@ -52,6 +52,12 @@ export async function handleRequest(request, env, verify = verifyFirebaseRequest
         return json({ error: "入力が長すぎます。" }, 413);
       }
 
+      // Configuration failures are not generation attempts and must not consume quota.
+      const order = mode === "high" ? highProviderOrder(env) : [];
+      if ((mode === "normal" && !env.AI) || (mode === "high" && order.length === 0)) {
+        return json({ error: "AIサーバーでエラーが発生しました。" }, 503);
+      }
+
       const budget = getBudget(env);
       if (!budget) return json({ error: "しばらくしてから再試行してください。" }, 503);
       const admission = await budget.fetch("https://budget/admit", {
@@ -64,7 +70,6 @@ export async function handleRequest(request, env, verify = verifyFirebaseRequest
 
       const prompt = buildRecipePrompt(ingredients, constraints, mode === "high");
       if (mode === "normal") {
-        if (!env.AI) return json({ error: "AIサーバーでエラーが発生しました。" }, 503);
         try {
           const recipe = await callWorkersAI(env, prompt, false);
           if (recipe?.trim()) return json({ recipe: recipe.trim(), mode: "normal" });
@@ -75,7 +80,6 @@ export async function handleRequest(request, env, verify = verifyFirebaseRequest
       }
 
       // Groq and Gemini are intentionally exclusive to high-accuracy mode.
-      const order = highProviderOrder(env);
       for (const provider of order) {
         try {
           const first = await callProvider(provider, env, prompt, true);
