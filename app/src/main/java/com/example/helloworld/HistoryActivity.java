@@ -25,6 +25,7 @@ import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class HistoryActivity extends AppCompatActivity implements HistoryAdapter.HistoryActionListener {
 
@@ -120,9 +121,17 @@ public class HistoryActivity extends AppCompatActivity implements HistoryAdapter
         historyRef.orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (isFinishing() || isDestroyed()) return;
                     List<RecipeHistory> historyList = new ArrayList<>();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        RecipeHistory history = document.toObject(RecipeHistory.class);
+                        Map<String, Object> data = new java.util.HashMap<>(document.getData());
+                        Object time = data.get("timestamp");
+                        if (time instanceof com.google.firebase.Timestamp)
+                            data.put("timestamp", ((com.google.firebase.Timestamp) time).toDate().getTime());
+                        Map<String, Object> normalized = HistoryMigration.normalize(data, 1L);
+                        RecipeHistory history = new RecipeHistory(null, (String) normalized.get("recipeTitle"),
+                            (String) normalized.get("ingredientsWithUsage"), (String) normalized.get("allConstraints"),
+                            (String) normalized.get("recipeContent"), (Long) normalized.get("timestamp"));
                         history.setId(document.getId());
                         historyList.add(history);
                     }

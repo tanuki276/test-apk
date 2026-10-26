@@ -1,6 +1,8 @@
 name: Cloud AI 配備 + 使用可能APKビルド
 
 on:
+  push:
+    branches: [fix/history-quota-settings]
   workflow_dispatch:
 
 jobs:
@@ -110,6 +112,23 @@ jobs:
           echo "Worker: ${BASE_URL}" >> "$GITHUB_STEP_SUMMARY"
           echo "Android endpoint: ${ENDPOINT}" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify deployed API and live recipe/history flow
+        env:
+          SMOKE_BASE_URL: ${{ steps.worker.outputs.endpoint }}
+        run: |
+          export SMOKE_BASE_URL="${SMOKE_BASE_URL%/generate-recipe}"
+          cd cloudflare-worker
+          npx wrangler tail --format=json > "$RUNNER_TEMP/cookai-tail.json" 2> "$RUNNER_TEMP/cookai-tail-error.txt" &
+          TAIL_PID=$!
+          cd ..
+          sleep 5
+          result=0
+          node scripts/live-smoke.mjs || result=$?
+          sleep 3
+          kill "$TAIL_PID" || true
+          node scripts/tail-summary.mjs "$RUNNER_TEMP/cookai-tail.json"
+          exit "$result"
+
       - name: 8. JDK 17をセットアップ
         uses: actions/setup-java@v4
         with:
@@ -126,7 +145,7 @@ jobs:
         shell: bash
         run: |
           chmod +x ./gradlew
-          ./gradlew clean assembleDebug \
+          ./gradlew clean testDebugUnitTest assembleDebug \
             -PAI_PROXY_URL="${{ steps.worker.outputs.endpoint }}" \
             --no-daemon --stacktrace --max-workers=2
 

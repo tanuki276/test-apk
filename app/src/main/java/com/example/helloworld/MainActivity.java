@@ -44,7 +44,6 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinnerTime;
     private Spinner spinnerDiet;
     private CheckBox useAllIngredientsCheckbox;
-    private CheckBox highAccuracyCheckbox;
     private Spinner spinnerType;
     private EditText editInstructions;
 
@@ -80,7 +79,6 @@ public class MainActivity extends AppCompatActivity {
         if (savedInstanceState != null) {
             historyOwnerUid = savedInstanceState.getString("historyOwnerUid");
             lastRecipe = savedInstanceState.getString("recipe", "");
-            if (highAccuracyCheckbox != null) highAccuracyCheckbox.setChecked(savedInstanceState.getBoolean("highAccuracy", false));
             if (!lastRecipe.isEmpty() && recipeOutputText != null) recipeOutputText.setText(lastRecipe);
         }
         updateRecipeActions();
@@ -161,7 +159,6 @@ public class MainActivity extends AppCompatActivity {
         spinnerTime = findViewById(R.id.spinner_time);
         spinnerDiet = findViewById(R.id.spinner_diet);
         useAllIngredientsCheckbox = findViewById(R.id.checkbox_use_all_ingredients);
-        highAccuracyCheckbox = findViewById(R.id.checkbox_high_accuracy);
         spinnerType = findViewById(R.id.spinner_type);
         editInstructions = findViewById(R.id.edit_instructions);
     }
@@ -201,7 +198,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle state) {
         state.putString("recipe", lastRecipe);
         state.putString("historyOwnerUid", historyOwnerUid);
-        state.putBoolean("highAccuracy", highAccuracyCheckbox != null && highAccuracyCheckbox.isChecked());
         super.onSaveInstanceState(state);
     }
 
@@ -285,15 +281,6 @@ public class MainActivity extends AppCompatActivity {
         ((com.google.android.material.button.MaterialButton) generateRecipeButton).setIconResource(
                 generating ? R.drawable.ic_cook_stop : R.drawable.ic_cook_spark);
 
-        if (highAccuracyCheckbox != null) {
-            boolean signedIn = current != null && !AccountController.isGuest(current);
-            if (!signedIn) highAccuracyCheckbox.setChecked(false);
-            highAccuracyCheckbox.setEnabled(signedIn && !generating && !accountBusy);
-            highAccuracyCheckbox.setText(signedIn
-                    ? "高精度モード（1日10回）"
-                    : "高精度モード（ログイン後に利用可能）");
-        }
-
         if (recipeOutputText == null || !lastRecipe.isEmpty() || generating) return;
         if (!proxyReady) {
             recipeOutputText.setText("現在サービスを利用できません。しばらくしてからお試しください。");
@@ -341,11 +328,6 @@ public class MainActivity extends AppCompatActivity {
                 if (task.isSuccessful()) startRecipeGeneration();
                 else Toast.makeText(this, "認証に失敗しました。通信を確認してもう一度お試しください。", Toast.LENGTH_LONG).show();
             });
-            return;
-        }
-        if (highAccuracyCheckbox != null && highAccuracyCheckbox.isChecked() && AccountController.isGuest(auth.getCurrentUser())) {
-            highAccuracyCheckbox.setChecked(false);
-            Toast.makeText(this, "高精度モードはログイン後に利用できます。", Toast.LENGTH_LONG).show();
             return;
         }
         continueRecipeGeneration();
@@ -396,7 +378,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        final boolean highAccuracy = highAccuracyCheckbox != null && highAccuracyCheckbox.isChecked();
+        final boolean highAccuracy = GenerationPreferences.isHighAccuracy(this, currentUser);
         final long uiRequest = ++uiGeneration;
         generationFailed = false;
         generationStatus.setVisibility(View.GONE);

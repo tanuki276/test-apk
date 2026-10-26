@@ -42,6 +42,49 @@ public class CookingUiTest {
         FirebaseFirestore.getInstance(restore).useEmulator("10.0.2.2", 8080);
         Tasks.await(FirebaseAuth.getInstance().signInAnonymously(), 30, TimeUnit.SECONDS);
     }
+    @Test public void pendingTransfersSurviveReopenAndAreIsolatedByAccount() {
+        Context context = ApplicationProvider.getApplicationContext();
+        PendingHistoryStore store = new PendingHistoryStore(context);
+        Map<String,Object> recipe = new HashMap<>();
+        recipe.put("recipeTitle", "保管"); recipe.put("recipeContent", "本文");
+        recipe.put("timestamp", 123L);
+        store.put("outbox-user-a", "stable-id", recipe);
+        store.close();
+        store = new PendingHistoryStore(context);
+        assertFalse(store.hasPending("outbox-user-b"));
+        assertTrue(store.hasPending("outbox-user-a"));
+        java.util.List<PendingHistoryStore.Entry> page = store.page("outbox-user-a");
+        assertEquals(1, page.size());
+        assertEquals(123L, page.get(0).data.get("timestamp"));
+        store.put("outbox-user-a", "stable-id", recipe);
+        assertEquals(1, store.page("outbox-user-a").size());
+        store.remove("outbox-user-a", page);
+        assertFalse(store.hasPending("outbox-user-a"));
+        store.close();
+    }
+    @Test public void highAccuracySettingRequiresLoginAndSurvivesRecreation() throws Exception {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.signOut();
+        Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+        try {
+            try (ActivityScenario<SettingsActivity> screen = ActivityScenario.launch(SettingsActivity.class)) {
+                onView(withId(R.id.switch_high_accuracy)).check(matches(org.hamcrest.Matchers.not(isEnabled())));
+            }
+            AccountController controller = AccountController.get(ApplicationProvider.getApplicationContext());
+            runAccount(controller, () -> controller.register("mode-" + System.nanoTime() + "@example.com", "TestPassword123!"));
+            try (ActivityScenario<SettingsActivity> screen = ActivityScenario.launch(SettingsActivity.class)) {
+                onView(withId(R.id.switch_high_accuracy)).perform(scrollTo(), click());
+                onView(withId(R.id.switch_high_accuracy)).check(matches(isChecked()));
+                screen.recreate();
+                onView(withId(R.id.switch_high_accuracy)).check(matches(isChecked()));
+            }
+            assertTrue(GenerationPreferences.isHighAccuracy(ApplicationProvider.getApplicationContext(), auth.getCurrentUser()));
+        } finally {
+            auth.signOut();
+            Tasks.await(auth.signInAnonymously(), 30, TimeUnit.SECONDS);
+            assertFalse(GenerationPreferences.isHighAccuracy(ApplicationProvider.getApplicationContext(), auth.getCurrentUser()));
+        }
+    }
     @Test public void saveDefaultsAndReloadAfterActivityRecreation() throws Exception {
         try (ActivityScenario<SettingsActivity> screen = ActivityScenario.launch(SettingsActivity.class)) {
             onView(withId(R.id.edit_preset_allergies)).perform(scrollTo(), replaceText("卵、乳"), closeSoftKeyboard());

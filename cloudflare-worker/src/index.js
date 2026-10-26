@@ -8,16 +8,20 @@ let cachedCerts = null;
 let certsExpireAt = 0;
 
 export default {
-  async fetch(request, env) {
+  fetch(request, env) { return handleRequest(request, env); },
+};
+
+// Explicit verifier argument is only used by local tests, never read from client input or env.
+export async function handleRequest(request, env, verify = verifyFirebaseRequest) {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/health") {
-      return json({ ok: true });
+      return json({ ok: true, apiVersion: 2, capabilities: ["usage", "normal", "high"] });
     }
 
     try {
       if (request.method === "GET" && url.pathname === "/usage") {
-        const identity = await verifyFirebaseRequest(request, env.FIREBASE_PROJECT_ID);
+        const identity = await verify(request, env.FIREBASE_PROJECT_ID);
         const budget = getBudget(env);
         if (!budget) return json({ error: "利用状況を取得できません。" }, 503);
         const status = await budget.fetch("https://budget/status", {
@@ -31,7 +35,7 @@ export default {
         return json({ error: "Not found" }, 404);
       }
 
-      const identity = await verifyFirebaseRequest(request, env.FIREBASE_PROJECT_ID);
+      const identity = await verify(request, env.FIREBASE_PROJECT_ID);
       const body = await readJsonBody(request);
       if (!body) return json({ error: "入力内容を確認してください。" }, 400);
       if (typeof body.ingredients !== "string" ||
@@ -76,7 +80,10 @@ export default {
         try {
           const first = await callProvider(provider, env, prompt, true);
           if (!first?.trim()) continue;
-          const reviewed = await callProvider(provider, env, buildReviewPrompt(prompt, first), true);
+          // A review outage must not throw away an already successful generation.
+          let reviewed = "";
+          try { reviewed = await callProvider(provider, env, buildReviewPrompt(prompt, first), true); }
+          catch (error) { console.error(`High accuracy review ${provider} failed`, safeMessage(error)); }
           return json({ recipe: (reviewed?.trim() || first.trim()), mode: "high" });
         } catch (error) {
           console.error(`High accuracy provider ${provider} failed`, safeMessage(error));
@@ -85,6 +92,7 @@ export default {
       return json({ error: "高精度モードを完了できませんでした。少し待ってから再試行してください。" }, 503);
     } catch (error) {
       const message = safeMessage(error);
+      console.error("Router request failed", message);
       const status = message.startsWith("AUTH_") ? 401 : message === "BODY_TOO_LARGE" ? 413 : 500;
       return json({
         error: status === 401
@@ -92,8 +100,7 @@ export default {
           : status === 413 ? "入力が長すぎます。" : "AIサーバーでエラーが発生しました。",
       }, status);
     }
-  },
-};
+}
 
 function getBudget(env) {
   if (!env.GENERATION_BUDGET) return null;
@@ -225,8 +232,9 @@ async function callGemini(env, prompt, highAccuracy) {
 
 async function callWorkersAI(env, prompt, highAccuracy) {
   const model = env.WORKERS_AI_MODEL || "@cf/google/gemma-4-26b-a4b-it";
-  const result = await env.AI.run(model, {
-    max_tokens: highAccuracy ? 2200 : 1400,
+  const result = await withTimeout(env.AI.run(model, {
+    max_completion_tokens: highAccuracy ? 3200 : 2400,
+    chat_template_kwargs: { enable_thinking: false },
     temperature: highAccuracy ? 0.45 : 0.7,
     messages: [
       { role: "system", content: highAccuracy
@@ -234,7 +242,7 @@ async function callWorkersAI(env, prompt, highAccuracy) {
         : "簡潔で実用的な日本語の料理レシピを作成してください。" },
       { role: "user", content: prompt },
     ],
-  });
+  }), 35000);
   if (typeof result === "string") return result;
   if (typeof result?.response === "string") return result.response;
   if (typeof result?.result?.response === "string") return result.result.response;
@@ -246,6 +254,13 @@ async function callWorkersAI(env, prompt, highAccuracy) {
       .join("\n");
   }
   return "";
+}
+
+function withTimeout(promise, milliseconds) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("AI_TIMEOUT")), milliseconds);
+  })]).finally(() => clearTimeout(timer));
 }
 
 async function verifyFirebaseRequest(request, projectId) {
@@ -288,7 +303,7 @@ async function verifyFirebaseRequest(request, projectId) {
 async function getFirebaseCerts() {
   const now = Date.now();
   if (cachedCerts && now < certsExpireAt) return cachedCerts;
-  const response = await fetch(FIREBASE_CERTS_URL);
+  const response = await fetch(FIREBASE_CERTS_URL, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error("AUTH_CERT_FETCH_FAILED");
   cachedCerts = await response.json();
   const cacheControl = response.headers.get("Cache-Control") || "";
