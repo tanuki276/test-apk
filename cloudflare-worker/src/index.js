@@ -70,7 +70,7 @@ export default {
         return json({ error: "ただいま混み合っています。しばらくしてから再試行してください。" }, 503);
       }
 
-      // High accuracy is intentionally the only route that can use Groq or Gemini.
+      // Groq and Gemini are intentionally exclusive to high-accuracy mode.
       const order = highProviderOrder(env);
       for (const provider of order) {
         try {
@@ -253,28 +253,36 @@ async function verifyFirebaseRequest(request, projectId) {
   const header = request.headers.get("Authorization") || "";
   if (!header.startsWith("Bearer ")) throw new Error("AUTH_MISSING_TOKEN");
   const token = header.slice("Bearer ".length).trim();
-  const protectedHeader = decodeProtectedHeader(token);
-  if (protectedHeader.alg !== "RS256" || !protectedHeader.kid) throw new Error("AUTH_INVALID_HEADER");
+  if (!token) throw new Error("AUTH_MISSING_TOKEN");
 
-  const certs = await getFirebaseCerts();
-  const cert = certs[protectedHeader.kid];
-  if (!cert) throw new Error("AUTH_UNKNOWN_KEY");
-  const key = await importX509(cert, "RS256");
-  const { payload } = await jwtVerify(token, key, {
-    algorithms: ["RS256"],
-    audience: projectId,
-    issuer: `https://securetoken.google.com/${projectId}`,
-  });
+  try {
+    const protectedHeader = decodeProtectedHeader(token);
+    if (protectedHeader.alg !== "RS256" || !protectedHeader.kid) throw new Error("AUTH_INVALID_HEADER");
 
-  const now = Math.floor(Date.now() / 1000);
-  if (!payload.sub || typeof payload.sub !== "string") throw new Error("AUTH_INVALID_SUBJECT");
-  if (typeof payload.auth_time === "number" && payload.auth_time > now) throw new Error("AUTH_INVALID_TIME");
-  const provider = payload.firebase?.sign_in_provider || "";
-  const email = typeof payload.email === "string" ? payload.email : "";
-  return {
-    uid: payload.sub,
-    guest: provider === "anonymous" || email.endsWith("@guest.cookai.invalid"),
-  };
+    const certs = await getFirebaseCerts();
+    const cert = certs[protectedHeader.kid];
+    if (!cert) throw new Error("AUTH_UNKNOWN_KEY");
+    const key = await importX509(cert, "RS256");
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: ["RS256"],
+      audience: projectId,
+      issuer: `https://securetoken.google.com/${projectId}`,
+    });
+
+    const now = Math.floor(Date.now() / 1000);
+    if (!payload.sub || typeof payload.sub !== "string") throw new Error("AUTH_INVALID_SUBJECT");
+    if (typeof payload.auth_time === "number" && payload.auth_time > now) throw new Error("AUTH_INVALID_TIME");
+    const provider = payload.firebase?.sign_in_provider || "";
+    const email = typeof payload.email === "string" ? payload.email : "";
+    return {
+      uid: payload.sub,
+      guest: provider === "anonymous" || email.endsWith("@guest.cookai.invalid"),
+    };
+  } catch (error) {
+    const message = safeMessage(error);
+    if (message.startsWith("AUTH_")) throw error;
+    throw new Error("AUTH_INVALID");
+  }
 }
 
 async function getFirebaseCerts() {
