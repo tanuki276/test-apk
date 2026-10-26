@@ -156,6 +156,8 @@ public class MainActivity extends AppCompatActivity {
         copyRecipeButton = findViewById(R.id.button_copy_recipe);
         shareRecipeButton = findViewById(R.id.button_share_recipe);
         recipeOutputText = findViewById(R.id.text_view_recipe_output);
+        // Restore only lastRecipe; framework-restored text may be a cancelled loading message.
+        if (recipeOutputText != null) recipeOutputText.setSaveEnabled(false);
         loadingIndicator = findViewById(R.id.progress_bar_loading);
 
         if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);

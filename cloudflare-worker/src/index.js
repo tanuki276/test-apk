@@ -1,4 +1,4 @@
-import { decodeProtectedHeader, importX509, jwtVerify } from "jose";
+import { decodeProtectedHeader, errors, importX509, jwtVerify } from "jose";
 
 const FIREBASE_CERTS_URL =
   "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
@@ -28,9 +28,19 @@ export default {
 
     try {
       const uid = await verifyFirebaseRequest(request, env.FIREBASE_PROJECT_ID);
-      const body = await request.json();
-      const ingredients = String(body?.ingredients || "").trim();
-      const constraints = String(body?.constraints || "").trim();
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "JSONの形式が正しくありません。" }, 400);
+      }
+      if (!body || typeof body !== "object" || Array.isArray(body)
+          || typeof body.ingredients !== "string"
+          || (body.constraints !== undefined && typeof body.constraints !== "string")) {
+        return json({ error: "食材と制約は文字列で指定してください。" }, 400);
+      }
+      const ingredients = body.ingredients.trim();
+      const constraints = (body.constraints || "").trim();
 
       if (!ingredients) {
         return json({ error: "食材が入力されていません。" }, 400);
@@ -53,11 +63,11 @@ export default {
           let recipe = null;
 
           if (provider === "groq" && env.GROQ_API_KEY) {
-            recipe = await callGroq(env, prompt);
+            recipe = await withTimeout((signal) => callGroq(env, prompt, signal));
           } else if (provider === "gemini" && env.GEMINI_API_KEY) {
-            recipe = await callGemini(env, prompt);
+            recipe = await withTimeout((signal) => callGemini(env, prompt, signal));
           } else if (provider === "workers" && env.AI) {
-            recipe = await callWorkersAI(env, prompt);
+            recipe = await withTimeout(() => callWorkersAI(env, prompt));
           } else {
             failures.push(`${provider}: not configured`);
             continue;
@@ -74,16 +84,16 @@ export default {
         }
       }
 
+      console.error("All providers unavailable", failures);
       return json(
         {
           error: "現在利用できるAIプロバイダがありません。しばらくしてから再試行してください。",
-          details: failures,
         },
         503,
       );
     } catch (error) {
       const message = safeMessage(error);
-      const status = message.startsWith("AUTH_") ? 401 : 500;
+      const status = message.startsWith("AUTH_") || error instanceof errors.JOSEError ? 401 : 500;
       return json(
         {
           error:
@@ -110,8 +120,30 @@ function buildRecipePrompt(ingredients, constraints) {
   ].join("\n");
 }
 
-async function callGroq(env, prompt) {
+// Three provider attempts plus certificate lookup fit inside Android's 90s deadline.
+const PROVIDER_TIMEOUT_MS = 20000;
+
+export async function withTimeout(operation, timeoutMs = PROVIDER_TIMEOUT_MS) {
+  const controller = new AbortController();
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => operation(controller.signal)),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error("Provider timeout"));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callGroq(env, prompt, signal) {
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    signal,
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.GROQ_API_KEY}`,
@@ -139,11 +171,12 @@ async function callGroq(env, prompt) {
   return data?.choices?.[0]?.message?.content || "";
 }
 
-async function callGemini(env, prompt) {
+async function callGemini(env, prompt, signal) {
   const model = env.GEMINI_MODEL || "gemini-3.8-flash";
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
     {
+      signal,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -195,13 +228,18 @@ async function callWorkersAI(env, prompt) {
 }
 
 async function verifyFirebaseRequest(request, projectId) {
-  if (!projectId) throw new Error("AUTH_PROJECT_NOT_CONFIGURED");
+  if (!projectId) throw new Error("PROJECT_NOT_CONFIGURED");
 
   const header = request.headers.get("Authorization") || "";
   if (!header.startsWith("Bearer ")) throw new Error("AUTH_MISSING_TOKEN");
 
   const token = header.slice("Bearer ".length).trim();
-  const protectedHeader = decodeProtectedHeader(token);
+  let protectedHeader;
+  try {
+    protectedHeader = decodeProtectedHeader(token);
+  } catch {
+    throw new Error("AUTH_INVALID_HEADER");
+  }
 
   if (protectedHeader.alg !== "RS256" || !protectedHeader.kid) {
     throw new Error("AUTH_INVALID_HEADER");
@@ -213,16 +251,18 @@ async function verifyFirebaseRequest(request, projectId) {
 
   const key = await importX509(cert, "RS256");
   const { payload } = await jwtVerify(token, key, {
+    requiredClaims: ["exp", "iat", "auth_time", "sub"],
     algorithms: ["RS256"],
     audience: projectId,
     issuer: `https://securetoken.google.com/${projectId}`,
   });
 
   const now = Math.floor(Date.now() / 1000);
-  if (!payload.sub || typeof payload.sub !== "string") {
+  if (typeof payload.sub !== "string" || !payload.sub || payload.sub.length > 128) {
     throw new Error("AUTH_INVALID_SUBJECT");
   }
-  if (typeof payload.auth_time === "number" && payload.auth_time > now) {
+  if (typeof payload.auth_time !== "number" || payload.auth_time > now
+      || typeof payload.iat !== "number" || payload.iat > now) {
     throw new Error("AUTH_INVALID_TIME");
   }
 
@@ -235,16 +275,16 @@ async function getFirebaseCerts() {
     return cachedCerts;
   }
 
-  const response = await fetch(FIREBASE_CERTS_URL);
+  const response = await fetch(FIREBASE_CERTS_URL, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) {
-    throw new Error("AUTH_CERT_FETCH_FAILED");
+    throw new Error("CERT_FETCH_FAILED");
   }
 
   cachedCerts = await response.json();
   const cacheControl = response.headers.get("Cache-Control") || "";
   const maxAgeMatch = cacheControl.match(/max-age=(\d+)/);
   const maxAgeSeconds = maxAgeMatch ? Number(maxAgeMatch[1]) : 3600;
-  certsExpireAt = now + Math.max(300, maxAgeSeconds - 60) * 1000;
+  certsExpireAt = now + Math.max(0, maxAgeSeconds - 60) * 1000;
   return cachedCerts;
 }
 
