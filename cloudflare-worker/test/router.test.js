@@ -77,3 +77,9 @@ test('invalid input never reaches the budget or AI', async () => {
   assert.equal(response.status, 413);
   assert.equal(env.calls.length, 0);
 });
+
+test('production fetch context cannot replace the authentication verifier', async () => {
+  const response = await worker.fetch(new Request('https://worker/usage'),
+    { FIREBASE_PROJECT_ID: 'demo-project' }, { waitUntil() {}, passThroughOnException() {} });
+  assert.equal(response.status, 401);
+});

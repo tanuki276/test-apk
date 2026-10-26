@@ -7,7 +7,9 @@ const FIREBASE_CERTS_URL =
 let cachedCerts = null;
 let certsExpireAt = 0;
 
-export default { fetch: handleRequest };
+export default {
+  fetch(request, env) { return handleRequest(request, env); },
+};
 
 // Explicit verifier argument is only used by local tests, never read from client input or env.
 export async function handleRequest(request, env, verify = verifyFirebaseRequest) {
